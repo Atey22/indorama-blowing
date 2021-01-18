@@ -1,0 +1,176 @@
+{
+"name" : "Planning Report",
+"params" : [{"marginleft" : "0.5in","marginright" : "0.5in"}],
+"cols" : [
+{"name" : "planid", "type" : "string", "description" : "Plan Id"},
+{"name" : "sortindex", "type" : "string", "description" : "Queue Position"},
+{"name" : "planstarttime", "type" : "string", "description" : "Plan Start Time"},
+{"name" : "machinename", "type" : "string", "description" : "Machine Name"},
+{"name" : "preventivemaintenance", "type" : "number", "description" : "Preventive Maintenance(Hrs)"},
+{"name" : "noplan", "type" : "number", "description" : "No plan (Hrs)"},
+{"name" : "partname", "type" : "string", "description" : "Part Name"},
+{"name" : "partnumber", "type" : "number", "description" : "Part Number"},
+{"name" : "preformcolour", "type" : "string", "description" : "Preform Colour"},
+{"name" : "productionqtypallets", "type" : "number", "description" : "Production Q'ty(Pallets)"},
+{"name" : "productionqtylayer", "type" : "number", "description" : "Production Q'ty(Layer)"},
+{"name" : "label", "type" : "string", "description" : "Label Yes/No"},
+{"name" : "labelqty", "type" : "number", "description" : "Label Q'ty(Roll)"},
+{"name" : "dtrollchange", "type" : "number", "description" : "DT Roll Change (Hrs)"},
+{"name" : "changeovertime", "type" : "number", "description" : "Changeover Time (Hrs)"},
+{"name" : "preformchangetime", "type" : "number", "description" : "Preform Change Time (Hrs)"},
+{"name" : "lineclearancetime", "type" : "number", "description" : "Line Clearance Time (Hrs)"},
+{"name" : "shiftchangetime", "type" : "number", "description" : "Shift Change Time (Hrs) "},
+{"name" : "mouldname ", "type" : "string", "description" : "Mould Name"},
+{"name" : "mouldnumber", "type" : "string", "description" : "Mould No"},
+{"name" : "customer", "type" : "string", "description" : "Customer"},
+{"name" : "mouldtype", "type" : "number", "description" : "Mould Type"},
+{"name" : "speed", "type" : "number", "description" : "Blowing Speed (Bph)"},
+{"name" : "eta", "type" : "number", "description" : "ETA"},
+{"name" : "costperpiece", "type" : "number", "description" : "Cost Per Piece"},
+{"name" : "cavities", "type" : "number", "description" : "Cavities"},
+{"name" : "activecavities", "type" : "number", "description" : "Active Cavities"},
+{"name" : "planendtime", "type" : "number", "description" : "Plan End time"},
+{"name" : "planstatus", "type" : "string", "description" : "Plan Status"},
+{"name" : "trial", "type" : "string", "description" : "Trial"},
+{"name" : "netweight", "type" : "number", "description" : "Preform weight (gms)"},
+{"name" : "preformresintype", "type" : "string", "description" : "Preform Resin Type"},
+{"name" : "blowingpressure", "type" : "number", "description" : "Blowing Pressure (Bar)"},
+{"name" : "preformuse", "type" : "string", "description" : "Preform Use"}
+],
+#set($count = 0)
+#set($number = 0)
+#set($planid ='"-"')
+#set($sortindex = '"-"')
+#set($planstarttime = '"-"')
+#set($machinename = '"-"')
+#set($preventivemaintenance = 0)
+#set($noplan = 0)
+#set($partname = '"-"')
+#set($partnumber = 0)
+#set($preformcolour = '"-"')
+#set($productionqtypallets = 0)
+#set($productionqtylayer = 0)
+#set($label = '"-"')
+#set($labelqty = 0)
+#set($dtrollchange = 0)
+#set($changeovertime = 0)
+#set($preformchangetime = 0)
+#set($lineclearancetime = 0)
+#set($shiftchangetime = 0)
+#set($mouldname = '"-"')
+#set($mouldnumber = '"_"')
+#set($customer = '"-"')
+#set($mouldtype = 0)
+#set($speed = 0)
+#set($eta = 0)
+#set($costperpiece = 0)
+#set($cavities = 0)
+#set($activecavities = 0)
+#set($planendtime = 0)
+#set($planstatus = '"-"')
+#set($trial = '"-"')
+#set($netweight = 0)
+#set($preformresintype = '"-"')
+#set($blowingpressure = 0)
+#set($targetquantity = 0)
+#set($preformbasketsize = 0)
+#set($preformuse = '"-"')
+#set($planning= $resultmap.planning)
+"reportData" : [
+#foreach($plan in $planning)
+#set($planid = $plan.get("_id").planid)
+#set($sortindex = $plan.get("_id").sortindex)
+#set($planstarttime = $plan.get("_id").planstarttime)
+#set($machinename = $plan.get("_id").machinename)
+#set($preventivemaintenance = $plan.get("_id").preventivemaintenance)
+#set($noplan = $plan.get("_id").noplan)
+#set($partname = $plan.get("_id").partname)
+#set($partnumber = $plan.get("_id").partnumber)
+#set($preformcolour = $plan.get("_id").preformcolour)
+#set($productionqtypallets = $plan.get("_id").productionqtypallets)
+#set($productionqtylayer = $plan.get("_id").productionqtylayer)
+#set($label = $plan.get("_id").label)
+#set($labelqty = $plan.get("_id").labelqty)
+#set($dtrollchange = $plan.get("_id").dtrollchange)
+#set($changeovertime = $plan.get("_id").changeovertime)
+#set($preformchangetime = $plan.get("_id").preformchangetime)
+#set($lineclearancetime = $plan.get("_id").lineclearancetime)
+#set($shiftchangetime = $plan.get("_id").shiftchangetime)
+#set($mouldname = $plan.get("_id").mouldname)
+#set($mouldnumber = $plan.get("_id").mouldnumber)
+#set($customer = $plan.get("_id").customer)
+#set($mouldtype = $plan.get("_id").mouldtype)
+#set($speed = $plan.get("_id").speed)
+#set($eta = $plan.get("_id").eta)
+#set($costperpiece = $plan.get("_id").costperpiece)
+#set($cavities = $plan.get("_id").cavities)
+#set($activecavities = $plan.get("_id").activecavities)
+#set($planendtime = $plan.get("_id").planendtime)
+#set($planstatus = $plan.get("_id").planstatus)
+#set($trial = $plan.get("_id").trial)
+#set($netweight = $plan.get("_id").netweight)
+#set($preformresintype = $plan.get("_id").preformresintype)
+#set($blowingpressure = $plan.get("_id").blowingpressure)
+#set($preformuse = $math.roundTo(2,$math.div($plan.get("_id").targetquantity,$plan.get("_id").preformbasketsize)))
+#if($number > 0)
+    ,
+#end
+{
+#set($number = $number + 1)
+"planid" : $planid,
+"sortindex" : $sortindex,
+"planstarttime" : $planstarttime,
+"machinename" : $machinename,
+"preventivemaintenance" : $preventivemaintenance,
+"noplan" : $noplan,
+"partname" : $partname,
+"partnumber" : $partnumber,
+"preformcolour" : $preformcolour,
+"productionqtypallets" : $productionqtypallets,
+"productionqtylayer" : $productionqtylayer,
+"label" : $label,
+"labelqty" : $labelqty,
+"dtrollchange" : $dtrollchange,
+"changeovertime" : $changeovertime,
+"preformchangetime" : $preformchangetime,
+"lineclearancetime" : $lineclearancetime,
+"shiftchangetime" : $shiftchangetime,
+"mouldname" : $mouldname,
+"mouldnumber" : $mouldnumber,
+"customer" : $customer,
+"mouldtype" : $mouldtype,
+"speed" : $speed,
+"eta" : $eta,
+"costperpiece" : $costperpiece,
+"cavities" : $cavities,
+"activecavities" : $activecavities,
+"planendtime" : $planendtime,
+"planstatus" : $planstatus,
+"trial" : $trial,
+"netweight" : $netweight,
+"preformresintype" : $preformresintype,
+"blowingpressure" : $blowingpressure,
+"preformuse" : $preformuse
+}
+#set($count = $count + 1)
+#end
+],
+"records" : $count
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

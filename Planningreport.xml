@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mon:Mongobot xmlns:mon="http://mongobot.entrib.com" Name="planningreport" Description="Planning Report" Database="emgda" Host="localhost" Port="27017">
+    <DataObject Name="planning" Collection="embedded">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;planning&quot; &amp;&amp; (planendtimestamp > 'startdate' &amp;&amp; planstarttimestamp != 0) || planstatus == &quot;Not Started&quot; || planstatus == &quot;In Progress&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="planid" Field="planid" />
+                    <Key Name="sortindex" Field="sortindex" />
+                    <Key Name="planstarttime" Field="planstarttime" />
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="preventivemaintenance" Field="preventivemaintenance" />
+                    <Key Name="noplan" Field="noplan" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="partnumber" Field="partnumber" />
+                    <Key Name="preformcolour" Field="preformcolour" />
+                    <Key Name="productionqtypallets" Field="productionqtypallets" />
+                    <Key Name="productionqtylayer" Field="productionqtylayer" />
+                    <Key Name="productionqtypcs" Field="productionqtypcs" />
+                    <Key Name="label" Field="label" />
+                    <Key Name="labelqty" Field="labelqty" />
+                    <Key Name="dtrollchange" Field="dtrollchange" />
+                    <Key Name="changeovertime" Field="changeovertime" />
+                    <Key Name="preformchangetime" Field="preformchangetime" />
+                    <Key Name="lineclearancetime" Field="lineclearancetime" />
+                    <Key Name="shiftchangetime" Field="shiftchangetime" />
+                    <Key Name="mouldname " Field="mouldname" />
+                    <Key Name="mouldnumber" Field="mouldnumber" />
+                    <Key Name="customer" Field="customer" />
+                    <Key Name="mouldtype" Field="mouldtype" />
+                    <Key Name="speed" Field="speed" />
+                    <Key Name="cavities" Field="cavities" />
+                    <Key Name="activecavities" Field="activecavities" />
+                    <Key Name="planendtime" Field="planendtime" />
+                    <Key Name="planstatus" Field="planstatus" />
+                    <Key Name="trial" Field="trial" />
+                    <Key Name="netweight" Field="netweight" />
+                    <Key Name="costperpiece" Field="costperpiece" />
+                    <Key Name="preformresintype" Field="preformresintype" />
+                    <Key Name="blowingpressure" Field="blowingpressure" />
+                    <Key Name="targetquantity" Field="targetquantity" />
+                    <Key Name="preformbasketsize" Field="preformbasketsize" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="sortindex" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+</mon:Mongobot>
