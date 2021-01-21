@@ -1,0 +1,475 @@
+{
+"name": "Machine Dashboard Production",
+"cols": [ { "name": "machinename", "type": "String", "description": "Machine", "width": "20%" },
+{ "name": "partname", "type": "String", "description": "Part", "width": "48%" },
+{ "name": "targetquantity", "type": "String", "description": "Planned", "width": "13%" },
+{ "name": "cycletime", "type": "String", "description": "Cycle Time" },
+{ "name": "productionplanstarttime", "type": "String", "description": "Production Plan Start Time" },
+{ "name": "activecavity", "type": "String", "description": "Active Cavity" },
+{ "name": "actualquantity", "type": "Date", "description": "Actual", "width": "13%" },
+{ "name": "downtimestart", "type": "Date", "description": "Down Time Start" },
+{ "name": "category", "type": "Date", "description": "Down Time Category" },
+{ "name": "machinestatus", "type": "String", "description": "Machine Status" },
+{ "name": "mouldtype", "type": "String", "description": "Mould Type" },
+{ "name": "downtimewithoutop", "type": "String", "description": "Downtime Without OP" },
+{"name":"calculatedtarget","type":"double","description":"Target quantity"},
+{"name":"calculatedplanned","type":"double","description":"Planned Quantity"},
+{"name":"calculatedactual","type":"double","description":"Caclulated Actual"},
+{"name":"planpercentage","type":"double","description":"Plan Percentage"},
+{"name":"efficiency","type":"double","description":"Efficiency"},
+{"name":"sortorder","type":"double","description":"Sort Order"},
+{"name":"machineindex","type":"double","description":"Machine Index"},
+{"name":"cellindex","type":"double","description":"Cell Index"}
+],
+#set($count = 0)
+#set($CurentTime = $date.getSystemTime())
+"reportData":
+[
+#set($machines = $resultmap.machine)
+#set($cells = $resultmap.cells)
+#set($planning = $resultmap.planning)
+#set($rejection = $resultmap.rejection)
+#set($noplan = $resultmap.noplan)
+#set($downtimewithoutoperatordelay = $resultmap.downtimewithoutoperatordelay)
+#set($noplancycletime = $resultmap.noplancycletime)
+#set($planningmap = $mapresultmap.planningmachine)
+#set($nextplanningmap = $mapresultmap.nextplannedmachine)
+#set($cycletime = $resultmap.cycletime)
+#set($cycletimepurge = $resultmap.cycletimepurged)
+#set($purge = $resultmap.purge)
+#set($downtime = $resultmap.downtime)
+#set($mouldchange = $resultmap.mouldchange)
+#set($planningkeyset = $planning.keySet())
+#set($cycletimekeyset = $cycletime.keySet())
+#set($totalplanned = 0)
+#set($totalactual = 0)
+#set($totalrejected = 0)
+#set($ms = [])
+#set($machinelist = [])
+#foreach($cellIndex in $cells)
+#foreach($val in $machines)
+#set($cellIndexName = $cellIndex.get("_id").cell)
+#set($machineCell = $val.get("_id").cell)
+#set($cellIndexDescription = $cellIndex.get("_id").celldescription)
+#set($cellIndexValue = $cellIndex.get("_id").cellindex)
+
+#if(!$cellIndexValue)
+#set($cellIndexValue = 99)
+#end
+#if($machineCell == $cellIndexName)
+#set($trial = false)
+#set($flag = 0)
+#set($counterflag = 0)
+#set($machine = $val.get("_id").machinename)
+#set($machineindex = $val.get("_id").machineindex)
+#if(!$machineindex)
+#set($machineindex = 999)
+#end
+#foreach($record in $planning)
+#set($machinename = $record.get("_id").machinename)
+#set($productionplanid = $record.get("_id").productionplanid)
+#set($rejectionQuantity = 0)
+#set($purgedQuantity = 0)
+#if($record.get("_id").partname)
+#set($partname = $record.get("_id").partname)
+#else
+#set($partname = '"-"')
+#end
+#if($record.get("_id").partnumber)
+#set($partnumber = $record.get("_id").partnumber)
+#else
+#set($partnumber = '"-"')
+#end
+#if($record.get("_id").lotnumber)
+#set($lotnumber = $record.get("_id").lotnumber)
+#else
+#set($lotnumber = '"-"')
+#end
+#if($record.get("_id").oplength)
+#set($oplength = $record.get("_id").oplength)
+#else
+#set($oplength = '"-"')
+#end
+#if($record.get("_id").oppcs)
+    #set($oppcs = $record.get("_id").oppcs)
+#else
+    #set($oppcs = '"-"')
+#end
+#if($record.get("_id").customerreferenceno)
+    #set($customerreferenceno = $record.get("_id").customerreferenceno)
+#else
+    #set($customerreferenceno = '"-"')
+#end
+#if($record.get("_id").opwidth)
+#set($opwidth = $record.get("_id").opwidth)
+#else
+#set($opwidth = '"-"')
+#end
+#if($record.get("_id").opthickness)
+#set($opthickness = $record.get("_id").opthickness)
+#else
+#set($opthickness = '"-"')
+#end
+#if($record.get("_id").mouldname)
+#set($mouldname = $record.get("_id").mouldname)
+#else
+#set($mouldname = '"-"')
+#end
+#if($record.get("_id").mouldnumber)
+#set($mouldnumber = $record.get("_id").mouldnumber)
+#else
+#set($mouldnumber = '"-"')
+#end
+#if($record.get("_id").cell)
+#set($cell = $record.get("_id").cell)
+#else
+#set($cell = '"-"')
+#end
+#if($record.get("_id").grossweight)
+#set($grossweight = $record.get("_id").grossweight)
+#else
+#set($grossweight = 0)
+#end
+#if($record.get("_id").workorder)
+#set($workorder = $record.get("_id").workorder)
+#else
+#set($workorder = '"-"')
+#end
+#if($record.get("_id").familypartname)
+#set($familypartname = $record.get("_id").familypartname)
+#else
+#set($familypartname = '"-"')
+#end
+#foreach($rej in $rejection)
+#if($machine == $rej.get("_id").machinename && $productionplanid == $rej.get("_id").productionplanid && $record.get("_id").partname == $rej.get("_id").partname)
+#set($rejectionQuantity = $rej.get("rejectionquantity"))
+#end
+#end
+#if(!$rejectionQuantity)
+#set($rejectionQuantity = 0)
+#end
+#foreach($purgerecord in $purge)
+#if($machine == $purgerecord.get("_id").machinename && $productionplanid == $purgerecord.get("_id").purgeplanid && $record.get("_id").partname == $purgerecord.get("_id").partname)
+#set($purgedQuantity = $purgerecord.get("purgeqty"))
+#end
+#end
+#if(!$purgedQuantity)
+#set($purgedQuantity = 0)
+#end
+#if ($machine == $machinename)
+#set($flag = 1)
+#set($mouldtype=$record.get("_id").mouldtype)
+#if (!$record.get("_id").mouldtype)
+#set($mouldtype='"-"')
+#end
+{
+"machinename": $machinename,
+"machineindex": $machineindex,
+"grossweight": $grossweight,
+"partnumber": $partnumber,
+"mouldname": $mouldname,
+"mouldnumber": $mouldnumber,
+"cell": $cell,
+"workorder": $workorder,
+"lotnumber": $lotnumber,
+"oplength": $oplength,
+"customerreferenceno": $customerreferenceno,
+"oppcs": $oppcs,
+"opwidth": $opwidth,
+"opthickness": $opthickness,
+"familypartname": $familypartname,
+"planid": $productionplanid,
+"cellindex": $cellIndexValue,
+"rejectionquantity": $rejectionQuantity,
+"purgeqty": $purgedQuantity,
+"cell": $cellIndexDescription,
+
+"mouldtype":$mouldtype,
+#if ($mouldtype == '"Family"' || $mouldtype == '"FAMILY"')
+"isfamily": true,
+#else
+"isfamily": false,
+#end
+#set($downtimewithoutop = 0)
+#foreach($downtimeop in $downtimewithoutoperatordelay)
+#if($machinename == $downtimeop.get("_id").machinename && $productionplanid == $downtimeop.get("_id").planid)
+#set($dtStatusForOP = $downtimeop.get("_id").downtimestatus)
+#if($dtStatusForOP == '"In Progress"')
+#set($dtStartTime = $downtimeop.get("_id").downtimestart)
+#set($tTime = $math.sub($CurentTime,$dtStartTime))
+#if(!$tTime)
+#set($tTime = 0)
+#end
+#set($downtimewithoutop =$math.add($downtimewithoutop,$tTime))
+#else
+#set($downtimewithoutop =$math.add($downtimewithoutop,$downtimeop.get("downtimeinms")))
+#end
+#end
+#end
+"downtimewithoutop":$downtimewithoutop,
+#if ($record.get("_id").trial == true)
+#set($trial = true)
+#else
+#set($trial = false)
+#end
+"trial": $trial,
+#set($modelname = $partname)
+#set($modelname = "$modelname")
+#set($totallen = $modelname.length())
+#set($totallen = $math.sub($totallen,1))
+#set($partname = $modelname.substring(1,$totallen))
+#set($modelname = $partnumber)
+#set($modelname = "$modelname")
+#set($totallen = $modelname.length())
+#set($totallen = $math.sub($totallen,1))
+#set($partnumber = $modelname.substring(1,$totallen))
+#set($partnamepartnumber = $partnumber)
+#set($partnamepartnumber = $partnamepartnumber + "-" + $partname)
+"partname": "$partname",
+"partnamepartnumber": "$partnamepartnumber",
+"targetquantity": $math.roundTo(2,$math.div($record.get("count"),1000)),
+#if($record.get("_id").cycletime)
+    "cycletime": $record.get("_id").cycletime,
+#else
+    "cycletime": 5,
+#end
+
+"productionplanstarttime": $record.get("_id").productionplanstarttime,
+#if($record.get("_id").activecavity)
+    "activecavity": $record.get("_id").activecavity,
+#else
+    "activecavity": 1,
+#end
+
+#set($foundmachine = 0)
+#foreach($p in $ms)
+#if($p == $record.get("_id").productionplanid)
+#set($foundmachine = 1)
+#break
+#end
+#end
+#set($a = $ms.add($record.get("_id").productionplanid))
+#set($a = $machinelist.add($machine))
+#if($foundmachine == 0)
+#set($totalplanned = $math.add($totalplanned, $record.get("count")))
+#end
+#set($actualquantity = 0)
+#set($actualplannedquantity = $record.get("count"))
+#set($machinestatus = "UP")
+#set($purgedqty = 0)
+#set($cycleqty = 0)
+#set($purgedlast = 0)
+#set($purgesince = 0)
+#set($cyclestart = 0)
+#set($actualplannedquantity = $record.get("count"))
+#foreach($rec in $cycletime)
+#if ($machinename == $rec.get("_id").machinename && $rec.get("count") && $productionplanid == $rec.get("_id").productionplanid && $rec.get("_id").partname == $record.get("_id").partname)
+#set($cycleqty = $rec.get("count"))
+"test" : $rec.get("firstcycle"),
+#set($cyclestart =$math.toNumber($rec.get("firstcycle")))
+#break
+#end
+#end
+"actualQTY": $math.roundTo(2,$cycleqty),
+#foreach($purgerecord in $cycletimepurge)
+#if ($machinename == $purgerecord.get("_id").machinename && $purgerecord.get("count") && $productionplanid == $purgerecord.get("_id").productionplanid && $purgerecord.get("_id").partname == $record.get("_id").partname)
+#set($purgedqty = $purgerecord.get("count"))
+#set($purgedlast = $math.toNumber($purgerecord.get("lastpurged")))
+#set($purgesince = $purgerecord.get("firstpurged"))
+#break
+#end
+#end
+"purgeQTY": $purgedqty,
+#if($purgedlast != 'null' && $cyclestart != 'null')
+#if($purgedlast > 0 && $cyclestart > 0)
+#if($purgedlast >= $cyclestart)
+#set($actualquantity = $purgedqty)
+#set($machinestatus = "PURGED")
+#else
+#set($actualquantity = $cycleqty)
+#end
+#else
+#if($cyclestart > 0)
+#set($actualquantity = $cycleqty)
+#end
+#if($purgedlast > 0)
+#set($actualquantity = $purgedqty)
+#set($machinestatus = "PURGED")
+#end
+#end
+#end
+#if($foundmachine == 0)
+#set($totalactual = $math.add($totalactual, $actualquantity))
+#end
+#set($checkquantity = $math.mul($actualplannedquantity, 0.90))
+#set($check = $math.sub($actualquantity , $checkquantity) )
+#set($hasNextPlan = false)
+#set($isMouldChangeRequired = false)
+#if ($check > 0)
+"isNearTarget": true,
+#foreach($mac in $resultmap.nextplannedmachine)
+#if ($mac.get("_id").machinename == $val.get("_id").machinename)
+#set($hasNextPlan = true)
+#set($nextplanmould = "")
+#set($currplanmould = "")
+#foreach($mould in $resultmap.planningmachine)
+#set($nextplanmould = $mac.get("mould"))
+#if($mould.get("_id").machinename == $val.get("_id").machinename)
+#set($currplanmould = $mould.get("mould"))
+#if ($nextplanmould != $currplanmould)
+#set($isMouldChangeRequired = true)
+#end
+"nextmould": "''",
+"cuurmould": "''",
+#end
+#end
+#end
+#end
+#else
+"isMouldChangeRequired": false,
+"isNearTarget": false,
+#end
+"hasNextPlan": $hasNextPlan,
+"isMouldChangeRequired": $isMouldChangeRequired,
+"actualquantity": $math.roundTo(2,$actualquantity),
+"purgesince" : $purgesince,
+#set($downtimestart = 0)
+#set($downtimeid = 0)
+#set($category = "NA")
+#set($status="In Progress")
+#set($dtstatus = "")
+#foreach($dtval in $downtime)
+#set($dtstatus = $dtval.get("downtimestatus"))
+#set($dtstatus = "$dtstatus")
+#set($strlen = $dtstatus.length())
+#set($strlen = $math.sub($strlen,1))
+#set($dtstatus = $dtstatus.substring(1,$strlen))
+#if($status == $dtstatus)
+#if ($dtval.get("_id").machinename == $machinename)
+#set($machinestatus = "DOWN")
+#set($downtimestart = $dtval.get("downtimestart"))
+#set($downtimeid = $dtval.get("downtimeid"))
+#if ($dtval.get("downtimereasoncode"))
+"category": $dtval.get("downtimereasoncode"),
+#else
+"category": "N/A",
+#end
+#end
+#end
+#end
+#foreach($mcval in $mouldchange)
+#if ($mcval.get("_id").machinename == $machinename)
+#if ($machinestatus == "DOWN")
+"isMouldChangeInProgress": true,
+#end
+#end
+#end
+"downtimestart": $downtimestart,
+"downtimeid": $downtimeid,
+"machinestatus": "$machinestatus"
+#set($count = $count + 1)
+},
+#end
+#end
+#set($machinefoundflag = 0)
+#foreach($mlist in $machinelist)
+#if($mlist == $machine)
+#set($machinefoundflag = 1)
+#end
+#end
+#if($machinefoundflag == 0)
+{
+#set($machinename = $val.get("_id").machinename)
+"machinename": $val.get("_id").machinename,
+"machineindex":$machineindex,
+"cellindex":$cellIndexValue,
+"rejectionquantity":0,
+"purgeqty": 0,
+"cell": $cellIndexDescription,
+"grossweight":0,
+"workorder":"-",
+"partnumber":"-",
+"mouldname":"-",
+"lotnumber": "-",
+"oplength": "-",
+"opwidth": "-",
+"oppcs": "-",
+"customerreferenceno": "-",
+"opthickness": "-",
+"mouldnumber":"-",
+"planid":"-",
+"isfamily": false,
+#set($productionplanstarttime = 0)
+#set($c = 0)
+#foreach($rec in $noplan)
+#if($val.get("_id").machinename == $rec.get("_id").machinename)
+#set($productionplanstarttime = $rec.get("_id").productionplanstarttime)
+#foreach($r in $noplancycletime)
+#if($rec.get("_id").machinename == $r.get("_id").machinename && $rec.get("_id").noplanid == $r.get("_id").noplanid)
+#set($c = $math.add($c, $r.get("count")))
+#end
+#end
+#end
+#end
+"partname": "-",
+"quantity":0,
+"targetquantity": 0,
+"cycletime": 0,
+"isnewplan":false,
+"productionplanstarttime": $productionplanstarttime,
+"activecavity": 0,
+"actualquantity": $c,
+#set($downtimestart = 0)
+#set($downtimeid = 0)
+#set($category = "NA")
+#set($machinestatus = "NO PLAN")
+#set($dtstatus = "")
+#set($status = "In Progress")
+#if ($nextplanningmap.containsKey($val.get("_id")))
+#foreach($dtval in $downtime)
+#set($dtstatus = $dtval.get("downtimestatus"))
+#set($dtstatus = "$dtstatus")
+#set($strlen = $dtstatus.length())
+#set($strlen = $math.sub($strlen,1))
+#set($dtstatus = $dtstatus.substring(1,$strlen))
+#if($status == $dtstatus)
+#if ($dtval.get("_id").machinename == $machinename)
+"dwmachinename": $dtval.get("_id").machinename,
+#set($machinestatus = "DOWN")
+#set($downtimestart = $dtval.get("downtimestart"))
+#set($downtimeid = $dtval.get("downtimeid"))
+#if ($dtval.get("downtimereasoncode"))
+"category": $dtval.get("downtimereasoncode"),
+#else
+"category": "N/A",
+#end
+#end
+#end
+#end
+#end
+"downtimestart": $downtimestart,
+"downtimeid": $downtimeid,
+"machinestatus": "$machinestatus"
+#set($count = $count + 1)
+},
+#end
+#end
+#end
+#end
+{
+"machinename": "Total",
+"machineindex":0,
+"partname": "",
+"targetquantity": $math.roundTo(2,$math.div($totalplanned,1000)),
+"cycletime": 0,
+"productionplanstarttime": "-",
+"activecavity": 0,
+"actualquantity": $math.roundTo(2,$totalactual),
+"downtimestart": 0,
+"category": " ",
+"machinestatus": "AGGREGATE"
+#set($count = $count + 1)
+}
+],
+"records": $count
+}

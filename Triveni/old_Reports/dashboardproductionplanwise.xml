@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mon:Mongobot xmlns:mon="http://mongobot.entrib.com" Name="machinedashboardplanwisev2" Database="emgda" Host="localhost" Port="27017">
+   <DataObject Name="cycletime" Collection="cycletime">
+      <Aggregate>
+         <Pipeline>
+            <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;cycletime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp('startdate') &amp;&amp; createdTimestamp &lt;= timestamp('enddate')) &amp;&amp; noplan == false &amp;&amp; purged == false" />
+         </Pipeline>
+         <Pipeline>
+            <Group>
+               <Key Name="machinename" Field="machinename" />
+               <Key Name="partname" Field="partname" />
+               <Key Name="productionplanid" Field="planid" />
+               <GroupField Name="count" Field="quantity" GroupFunction="Sum" />
+            </Group>
+         </Pipeline>
+      </Aggregate>
+   </DataObject>
+   <DataObject Name="rejection" Collection="rejection">
+      <Aggregate>
+         <Pipeline>
+            <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; (createdTimestamp &gt;= timestamp('startdate') &amp;&amp; createdTimestamp &lt;= timestamp('enddate'))" />
+         </Pipeline>
+         <Pipeline>
+            <Group>
+               <Key Name="machinename" Field="machinename" />
+               <Key Name="partname" Field="partname" />
+               <Key Name="productionplanid" Field="planid" />
+               <GroupField Name="rejectionquantity" Field="rejectionquantity" GroupFunction="Sum" />
+            </Group>
+         </Pipeline>
+      </Aggregate>
+   </DataObject>
+</mon:Mongobot>

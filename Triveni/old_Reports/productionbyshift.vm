@@ -1,0 +1,660 @@
+{
+	"name" : "Production - By Shift",
+	"params" :  [{ "marginleft" : "0.5in","marginright" : "0.5in" }],
+	"cols" : [{"name" : "number", "type" : "number", "description" : "Sr. No"},
+				{"name" : "shift", "type" : "String", "description" : "Shift"},
+				{"name" : "machinename", "type" : "String", "description" : "Machine"},
+                {"name" : "partname", "type" : "String", "description" : "Lot Number"},
+				{"name" : "scheduletype", "type" : "String", "description" : "Schedule Type"},
+				{"name" : "runtime", "type" : "Long", "description" : "Run Time (d hh:mm:ss)"},
+                {"name" : "producedquantity", "type" : "long", "description" : "Produced Qty"},
+                {"name" : "rejectedquantity", "type" : "long", "description" : "Rejected Qty"},
+                {"name" : "rejection", "type" : "number", "description" : "Rej %"},
+                {"name" : "reworkquantity","type":"long","description":"Rework Qty"},
+                {"name" : "rework","type":"number","description":"Rework%"},
+                {"name" : "acceptedquantity", "type" : "long", "description" : "Accepted Qty"},
+                {"name" : "delaytimeinhr", "type" : "String", "description" : "Delay Time (d hh : mm: ss)"},
+				{"name" : "downtime", "type" : "Long", "description" : "Down Time (d hh:mm:ss)"},
+				{"name" : "availabletimeeff", "type" : "Number", "description" : "Avl Time Eff %"},
+				{"name" : "performanceeff", "type" : "Number", "description" : "Prod Eff %"},
+				{"name" : "qualityeff", "type" : "Number", "description" : "Quality Eff %"},
+				{"name" : "oee", "type" : "Number", "description" : "OEE %"}
+			],
+		#set($count = 0)
+		#set($number = 0)
+		#set($velocitycycletime = $velocityparameter.cycletime)
+		#set($startdate = $velocitycycletime.get("startdate"))
+		#set($enddate = $velocitycycletime.get("enddate"))
+		#set($result = $math.sub($enddate, $startdate))
+		#set($days = $math.div($result, 86400000))
+		#set($roundoffval = $math.roundTo(2,$days))
+		#set($intvaldays = $math.floor($roundoffval))
+		#set($decimalval = $math.sub($roundoffval, $intvaldays))
+		#set($currenttime =  $date.get('yyyy-MM-dd HH:mm:ss'))
+		#set($currenttime1 = "$currenttime")
+		#set($currenttimehours = $math.toInteger($currenttime1.substring(11,13)))
+		#set($currenttimemin = $math.toInteger($currenttime1.substring(14,16)))
+		#set($currenttimesec = $math.toInteger($currenttime1.substring(17,19)))
+		"reportData" : [
+			#set($planning = $resultmap.planning)
+			#set($downtime = $resultmap.downtime)
+			#set($production = $resultmap.production)
+			#set($CurrentShift = $resultmap.CurrentShift)
+			#set($shutdowntime = $resultmap.shutdowntime)
+			#set($cycletime = $resultmap.cycletime)
+			#set($cycletimenoplan = $resultmap.cycletimenoplan)
+			#set($trialcycletime = $resultmap.trialcycletime)
+			#set($rejection = $resultmap.rejection)
+			#set($shift = $resultmap.shift)
+			#set($machine = $resultmap.machine)
+            #set($delay = $resultmap.delay)
+			#set($breaktime = $resultmap.breaktime)
+			#set($shiftcount = $resultmap.shiftcount)
+			#set($holidays = $resultmap.holidays)
+            #set($cycletimepurging = $resultmap.cycletimepurging)
+            #set($managementlossesdowntime = $resultmap.managementlossesdowntime)
+            #set($downtimereason = $resultmap.downtimereason)
+			#set($totaloee = 0)
+			#set($totalqualityoee = 0)
+			#set($totalperformanceeff = 0)
+			#set($totalavailabletimeeff = 0)
+			#set($availabletimeeff = 0)
+			#set($currentshift = 0)
+			#set($noofshifts = 0)
+			#set($totaldurationofholiday = 0)
+			#set($holidayCompleteDuration = 0)
+			#set($holidaydurationinhr = 0)
+			#set($holidaypershift = 0)
+			
+			#set($HolidayInterval = 0)
+			#set($noofholidays = 0)
+			#set($shiftBTinmsecs = 0)
+			#foreach($recholiday in $holidays)
+				#set($totaldurationofholiday = $math.add($holidaydurationinhr, $recholiday.get("totalduration")))
+			#end
+			#set($noofholidays = $math.div($totaldurationofholiday, 24))
+			#set($holidayCompleteDuration = $math.mul($totaldurationofholiday, 3600000))
+			
+			#foreach($sc in $shiftcount)
+				#set($noofshifts = $sc.get("shiftcount"))
+				#if($noofshifts == 1 && $noofholidays != 0)
+					#set($holidaypershift = $math.mul($sc.get("_id").shifthours, 3600000))
+				#else
+					#set($holidaypershift = $math.div($holidayCompleteDuration, $noofshifts))
+				#end
+			#end
+			#foreach($s in $CurrentShift)
+				#set($shiftstarttime = $s.get("starttime"))
+				#set($shiftendtime = $s.get("endtime"))
+				#set($shiftstarttime = "$shiftstarttime")
+				#set($shiftendtime = "$shiftendtime")
+				#set($shiftstarthour = $math.toInteger($shiftstarttime.substring(1,3)))
+				#set($shiftstartmin = $math.toInteger($shiftstarttime.substring(4,6)))
+				#set($shiftstartsec = $math.toInteger($shiftstarttime.substring(7,9)))
+				#set($shiftendhour = $math.toInteger($shiftendtime.substring(1,3)))
+				
+				#if(($currenttimehours >= $shiftstarthour) && $currenttimehours <= $shiftendhour)
+					#set($currentshift = $s.get("shiftnumber"))
+				#end
+			#end
+			#foreach($record in $machine)
+                #set($machinefound = 0)
+				#foreach($s in $shift)
+                    #set($machines = [])
+					#set($shiftval = $s.get("shiftdescription"))
+					#set($noofhours = $s.get("noofhours"))
+					#set($shiftno = $s.get("shiftnumber"))
+					#set($machinename = $record.get("machinename"))
+                    #set($shiftname = $s.get("shiftdescription"))
+					#set($finalBreaktime = 0)
+					#set($currentShiftBT = 0)
+					#set($shiftbreaktime = 0)
+					#set($Btdurationinholidays = 0)
+					#set($completeshiftbreaktimeinmin = 0)
+					#set($completeshiftsbreaktime = 0)
+					#set($availabletimeeff = 0)
+					#set($performanceeff = 0)
+					#set($qualityeff = 0)
+					
+					#foreach($b in $breaktime)
+						#set($shiftname = $s.get("shiftdescription"))
+						#set($shiftofbreaktime = $b.get("shift"))
+						#if($shiftname == $shiftofbreaktime)
+							#set($completeshiftbreaktimeinmin = $math.add($completeshiftbreaktimeinmin,$b.get("duration")))
+						#end
+
+					#end
+					#set($shiftBTinmsecs = $math.mul($completeshiftbreaktimeinmin,60000))
+					#set($Btdurationinholidays = $math.mul($shiftBTinmsecs, $noofholidays ))
+					#set($completeshiftsbreaktime = $math.mul($completeshiftbreaktimeinmin, $intvaldays))
+						#if($decimalval != 0)
+							#set($shiftno = $math.toInteger($shiftno))
+							#set($currentshift = $math.toInteger($currentshift))
+							#if($shiftno < $currentshift)
+								#foreach($b in $breaktime)
+									#set($shiftshift = $s.get("shiftdescription"))
+									#set($breaktimeshift = $b.get("shift"))
+									#if($shiftshift == $breaktimeshift)
+										#set($shiftbreaktime = $math.add($shiftbreaktime, $b.get("duration")))
+									#end
+								#end
+							#end
+							
+							#if($currentshift == $shiftno)
+								#set($totalBreakTime = 0)
+								#foreach($b in $breaktime)
+									#if($s.get("shiftdescription") == $b.get("shift"))
+										#set($breakstarttime = $b.get("starttime"))
+										#set($breakstarttime = "$breakstarttime")
+										#set($breakendtime = $b.get("endtime"))
+										#set($breakendtime = "$breakendtime")
+										#set($flag = $b.get("nextdayspillover"))
+										#set($breakstarthour = $math.toInteger($breakstarttime.substring(1,3)))
+										#set($breakendhour = $math.toInteger($breakendtime.substring(1,3)))
+										#set($breakendmin = $math.toInteger($breakendtime.substring(4,6)))
+										#if($breakstarthour <= $currenttimehours) 
+											#if(($breakstarthour == $currenttimehours)&&($breakendmin > $currenttimemin))
+											#else
+												#if(($currenttimehours >= $breakendhour)  && ($flag == false))
+													#set($totalBreakTime = $math.add($totalBreakTime,$b.get("duration")))
+												#end
+											#end
+											#set($currentShiftBT = $totalBreakTime)
+										#end
+									#end
+								#end
+							#end
+						#end
+						#set($finalBreaktime = $math.add($shiftbreaktime, $completeshiftsbreaktime))
+						#set($finalBreaktime = $math.add($finalBreaktime, $currentShiftBT))
+						#set($totalnoofhours = 0)
+						#set($shiftflag = $s.get("nextdayspillover"))
+						#set($fact = 0)
+						#set($TotalCurrentShiftTime = 0)
+						#set($shiftstarttime = $s.get("starttime"))
+						#set($shiftstarttime = "$shiftstarttime")
+						#set($shiftstarthour = $math.toInteger($shiftstarttime.substring(1,3)))
+						#set($shiftstartmin = $math.toInteger($shiftstarttime.substring(4,6)))
+						#set($shiftstartsec = $math.toInteger($shiftstarttime.substring(7,9)))
+						#set($shiftendtime = $s.get("endtime"))
+						#set($shiftendtime = "$shiftendtime")
+						#set($shiftendhour = $math.toInteger($shiftendtime.substring(1,3)))
+						#set($availabletime = 0)
+					#if($intvaldays > 0)	
+						#set($availabletime = $math.mul($noofhours,3600000))
+						#set($availabletime = $math.mul($availabletime, $intvaldays))
+					#end
+					#if($decimalval != 0)
+						#if(($shiftstarthour < $currenttimehours) && ($currenttimehours > $shiftendhour)&& ($shiftflag == false))
+							#set($TotalCurrentShiftTime = $noofhours)
+							#set($TotalCurrentShiftTime = $math.mul($TotalCurrentShiftTime, 3600000))
+						#else
+							#set($CurrentShiftHours = $math.sub($currenttimehours, $shiftstarthour))
+							#set($CurrentShiftHours = $math.mul($CurrentShiftHours, 3600000))
+							#set($CurrentShiftMins = $math.sub($currenttimemin, $shiftstartmin))
+							#set($CurrentShiftMins = $math.mul($CurrentShiftMins, 60000))
+							#set($CurrentShiftSecs = $math.sub($currenttimesec, $shiftstartsec))
+							#set($CurrentShiftmSecs = $math.mul($CurrentShiftSecs, 1000))
+							#set($TotalCurrentShiftTime = $math.add($CurrentShiftHours, $CurrentShiftMins))
+							#set($TotalCurrentShiftTime = $math.add($TotalCurrentShiftTime, $CurrentShiftmSecs))
+						#end
+					#end
+					#set($HolidayInterval = $math.sub($holidaypershift, $Btdurationinholidays))
+					#set($totalbreaktimeinmsec = $math.mul($finalBreaktime, 60000))
+					#set($TotalAvailableTime = $math.add($TotalCurrentShiftTime, $availabletime))
+					#set($TotalAvailableTime = $math.sub($TotalAvailableTime, $totalbreaktimeinmsec))
+					#set($TotalAvailableTime = $math.sub($TotalAvailableTime, $HolidayInterval))
+					#foreach($rec in $cycletime)
+						#set($shiftname = '"-"')
+                        #set($shiftname = $rec.get("_id").shift)
+                        #if($machinename == $rec.get("_id").machinename && $shiftval == $shiftname)
+                            #set($machinefound = 1)
+                            #if($number > 0)
+                                ,
+                            #end
+                            {
+                                #set($number = $number + 1)
+								#set($scheduletype = '"-"')
+                                "number" : $number,
+                                #set($found = 0)
+                                #foreach($mac in $machines)
+                                    #if($mac == $rec.get("_id").machinename)
+                                        #set($found = 1)
+                                        #break
+                                    #end
+                                #end
+                                #set($f = $machines.add($rec.get("_id").machinename))
+
+                                "machinename" : $machinename,
+                                "shift" : $shiftval,
+                                #set($scheduletype = '"-"')
+								#if($rec.get("_id").partname)
+                                    "partname" : $rec.get("_id").partname,
+									#foreach($plan in $planning)
+										 #if($rec.get("_id").machinename==$plan.get("_id").machinename && $rec.get("_id").partname==$plan.get("_id").partname)
+											#set($scheduletype = $plan.get("_id").scheduletype)
+										#end								
+									#end
+                                #else
+                                    "partname" : "-",
+                                #end
+								"scheduletype": $scheduletype,
+                                #if($rec.get("_id").partcode)
+                                    "partcode" : $rec.get("_id").partcode,
+                                #else
+                                    "partcode" : "-",
+                                #end
+
+                                #if($rec.get("_id").colour)
+                                    "colour" : $rec.get("_id").colour,
+                                #else
+                                    "colour" : "-",
+                                #end
+
+                                #set($actualdowntime = 0)
+                                #foreach($rec in $downtime)
+                                    #if(($machinename == $rec.get("_id").machinename) && ($shiftname == $rec.get("_id").shift))
+                                        #set($actualdowntime = $rec.get("downtime"))
+                                        #break
+                                    #end
+                                #end
+                                
+                                #set($actualdowntime = $math.sub($actualdowntime,$totalbreaktimeinmsec))
+                                #set($actualdowntime = $math.sub($actualdowntime,$HolidayInterval))
+                                #if($actualdowntime <= 0)
+                                    #set($actualdowntime = 0)
+                                #else
+                                    #set($actualdowntime = $actualdowntime)
+                                #end
+                                
+                                #set($runtime = 0)
+                                #set($cycletimeforplan = 0)
+                                #set($planlist = [])
+                                #foreach($rec in $cycletime)
+                                    #if($machinename == $rec.get("_id").machinename && $shiftname == $rec.get("_id").shift)
+                                        #if(!$planlist.contains($rec.get("_id").productionplanid))
+                                            #set($cycletimeforplan = $rec.get("totalcycletime"))
+                                            #set($runtime = $math.add($runtime, $cycletimeforplan))
+                                            #set($pl = $planlist.add($rec.get("_id").productionplanid)) 
+                                        #end
+                                    #end                           
+                                #end
+                                
+                                #set($totalquantity = 0)
+                                #foreach($prodRec in $production)
+                                    #if($machinename == $prodRec.get("_id").machinename && $shiftname == $prodRec.get("_id").shift)
+                                        #set($totalquantity = $math.add($totalquantity, $prodRec.get("totalquantity")))
+                                    #end 
+                                #end
+                                #set($purgetime = 0)
+                                #set($purgequantity = 0)
+                                #foreach($r in $cycletimepurging)
+                                #if($shiftname == $r.get("_id").shift && $rec.get("_id").machinename == $r.get("_id").machinename && $rec.get("_id").partname == $r.get("_id").partname)
+                                    #set($purgetime = $math.add($purgetime, $r.get("totalcycletime")))
+                                    #set($purgequantity = $math.add($purgequantity, $r.get("totalquantity")))
+                                    #set($purgequantity = $math.round($purgequantity))
+                                #end
+                                #end
+                                "purgeqty" : $purgequantity,
+                                #set($currentday = 0)
+                                #set($actualpurgetime = $math.div($purgetime, 1000))
+                                #set($actualpurgetime = $math.toInteger($actualpurgetime))
+                                #set($currentminutes = $math.div($actualpurgetime, 60))
+                                #set($currenthours = $math.div($currentminutes, 60))
+                                #set($currentday=$math.div($currenthours,24))
+                                #set($currentday=$math.toInteger($currentday))
+                                #set($currentminutes = $math.mod($currentminutes, 60))
+                                #set($currenthours = $math.mod($currenthours, 24))
+                                #set($currenthours = $math.toInteger($currenthours))
+                                #set($currentminutes = $math.toInteger($currentminutes))
+                                #set($currentseconds = $math.mod($actualpurgetime, 60))
+                                #set($hours = 0)
+                                #set($minutes = 0)
+                                #set($seconds = 0)
+                                #if($currenthours < 10)
+                                #set($hours = "0$currenthours")
+                                #else
+                                #set($hours = "$currenthours")
+                                #end
+                                #if($currentminutes < 10)
+                                #set($minutes = "0$currentminutes")
+                                #else
+                                #set($minutes = "$currentminutes")
+                                #end
+                                #if($currentseconds < 10)
+                                #set($seconds = "0$currentseconds")
+                                #else
+                                #set($seconds = "$currentseconds")
+                                #end
+                                "purgetime":"$currentday d $hours:$minutes:$seconds",
+
+                                #set($totaltrialcycletime = 0)
+                                #foreach($r in $trialcycletime)
+                                    #if($r.get("_id").machinename == $machinename && $r.get("_id").shift == $shiftname)
+                                        #set($totaltrialcycletime = $r.get("totalcycletime"))
+                                        #break
+                                    #end
+                                #end
+                                
+                                #set($totalshutdowntime = 0)
+                                #foreach($rec in $shutdowntime)
+                                    #if($machinename == $rec.get("_id").machinename && $rec.get("_id").shift == $shiftname)
+                                        #set($totalshutdowntime = $rec.get("downtime"))
+                                        #break
+                                    #end
+                                #end
+                                
+                                #set($totalmanagementlossdt = 0)
+                                #foreach($r in $managementlossesdowntime)
+                                    #if($machinename == $r.get("_id").machinename && $shiftname==$r.get("_id").shift)
+                                        #foreach($dtrec in $downtimereason)
+                                            #if($dtrec.get("_id").downtimereason == $r.get("_id").downtimereason)
+                                                #set($totalmanagementlossdt = $math.add($totalmanagementlossdt, $r.get("downtime")))  
+                                            #end
+                                        #end 
+                                    #end
+                                #end 
+                                #set($TotalAvailableTime=$math.sub($TotalAvailableTime, $totalmanagementlossdt))
+                                ## #set($TotalAvailableTime=$math.sub($TotalAvailableTime, $totaltrialcycletime)) 
+                                #set($TotalAvailableTime = $math.sub($TotalAvailableTime, $totalshutdowntime))
+
+                                #set($actualdelay=0)
+								#set($operatordelay = 0)
+								#set($operatordelaytime = 0)
+								#set($planlists = [])
+                                #foreach($d in $delay)
+                                    #if($machinename==$d.get("_id").machinename && $shiftval == $d.get("_id").shift)
+										 #if(!$planlists.contains($d.get("_id").productionplanid))
+                                            #set($operatordelay = $d.get("downtime"))
+                                            #set($operatordelaytime = $math.add($operatordelaytime, $operatordelay))
+                                            #set($pl = $planlists.add($d.get("_id").productionplanid)) 
+                                        #end
+                                    #end
+									#if($machinename==$d.get("_id").machinename && $shiftval == $d.get("_id").shift)
+                                        #set($actualdelay=$d.get("downtime"))
+									#end
+                                #end
+								#set($runtime = $math.add($runtime, $operatordelaytime))
+                                #set($totaltarget = 0)
+                                #set($totalproduced = 0)
+                                #foreach($rec in $production) 
+                                    #if($machinename==$rec.get("_id").machinename && $shiftname==$rec.get("_id").shift) 
+                                        #set($cavities=0)
+                                        #set($idealcycletime=0)
+                                        #foreach($plan in $planning)
+                                            #if($rec.get("_id").productionplanid==$plan.get("_id").planid)
+                                            #set($idealcycletime=$plan.get("_id").cycletime)
+                                            #set($cavities=$plan.get("activecavity")) 
+											#set($operatordelaydttime = 0)
+											#foreach($dtrec in $delay)
+												#if($machinename==$dtrec.get("_id").machinename && $shiftname==$dtrec.get("_id").shift && $plan.get("_id").planid == $dtrec.get("_id").productionplanid)
+													#set($operatordelaydttime = $dtrec.get("downtime"))
+												#end
+											#end
+                                            #set($sumofcycletime=0)
+                                            #set($sumofcycletime=$rec.get("totalcycletime")) 
+											#set($sumofcycletime=$math.add($sumofcycletime,$operatordelaydttime))
+                                            #set($sumofcycletime=$math.div($sumofcycletime, 1000))
+                                            #set($target=$math.div($sumofcycletime,$idealcycletime))
+                                            #set($target=$math.mul($target,$cavities)) 
+                                            #set($target = $math.round($target))
+                                            #set($actual=$rec.get("totalquantity"))
+                                            #set($totaltarget=$math.add($totaltarget,$target))
+                                            #set($totalproduced=$math.add($totalproduced,$actual))#end 
+                                        #end 
+                                    #end 
+                                #end 
+
+                                #set($rejectedquantity = 0)
+                                #set($reworkquantity = 0)
+                                #set($rejectedqty = 0)
+                                #foreach($r in $rejection)
+                                    #if($rec.get("_id").machinename == $r.get("_id").machinename && $shiftname == $r.get("_id").shift && $rec.get("_id").productionplanid == $r.get("_id").productionplanid && $rec.get("_id").partname == $r.get("_id").partname)
+                                        #set($rejectedqty = $r.get("rejectedquantity"))
+                                        #set($rejectedqty = $math.round($rejectedqty))
+                                        #set($reworkquantity = $r.get("reworkquantity"))
+                                        #set($reworkquantity = $math.round($reworkquantity))
+                                    #end
+                                    #if($machinename == $r.get("_id").machinename && ($shiftname == $r.get("_id").shift))
+                                          #set($rejectedquantity=$math.add($rejectedquantity,$r.get("rejectedquantity")))
+                                    #end
+                                #end
+                                #set($acceptedquantity = $math.sub($totalquantity, $rejectedquantity))
+								#set($reworkpercent = 0)
+                                #set($reworkpercent = $math.div($reworkquantity, $rec.get("totalquantity")))
+                                #set($reworkpercent = $math.mul($reworkpercent, 100))
+                                #set($reworkpercent = $math.roundTo(2, $reworkpercent))
+                                #set($rejectionpercent = 0)
+                                #set($rejectionpercent = $math.div($rejectedqty, $rec.get("totalquantity")))
+                                #set($rejectionpercent = $math.mul($rejectionpercent, 100))
+                                #set($rejectionpercent = $math.roundTo(2, $rejectionpercent))
+								
+								#set($acceptedqtypartwise = 0)
+                                #set($producedquantity = 0)
+                                #set($producedquantity = $math.round($rec.get("totalquantity")))
+								#set($producedquantity = $math.sub($producedquantity, $purgequantity))
+								#set($acceptedqtypartwise = $math.sub($producedquantity, $rejectedqty))
+                                "producedquantity" : $producedquantity,
+                                "acceptedquantity" : $acceptedqtypartwise,
+                                "rejectedquantity" : $rejectedqty,
+                                "rejection" : $rejectionpercent,
+                                "reworkquantity" : $reworkquantity,
+                                "rework" : $reworkpercent
+
+                                #if($found == 0)
+                                    ,
+                                    #if($runtime <=0)
+                                        "runtime" : "0 d 00:00:00",
+                                    #else
+                                        #set($hours = 0)
+                                        #set($minutes = 0)
+                                        #set($seconds = 0)
+                                        #set($currentday = 0)
+                                        #set($actualtime=$math.div($runtime, 1000))
+                                        #set($actualtime=$math.toInteger($actualtime))
+                                        #set($currentminutes = $math.div($actualtime, 60))
+                                        #set($currenthours = $math.div($currentminutes, 60))
+                                        #set($currentday=$math.div($currenthours,24))
+                                        #set($currentday=$math.toInteger($currentday))
+                                        #set($currentminutes = $math.mod($currentminutes, 60))
+                                        #set($currenthours = $math.mod($currenthours, 24))
+                                        #set($currenthours = $math.toInteger($currenthours))
+                                        #set($currentminutes = $math.toInteger($currentminutes))
+                                        #set($currentseconds = $math.mod($actualtime, 60))
+                                        #if($currenthours < 10)
+                                            #set($hours = "0$currenthours")
+                                        #else
+                                            #set($hours = "$currenthours")
+                                        #end
+                                        #if($currentminutes < 10)
+                                            #set($minutes = "0$currentminutes")
+                                        #else
+                                            #set($minutes = "$currentminutes")
+                                        #end
+                                        #if($currentseconds < 10)
+                                            #set($seconds = "0$currentseconds")
+                                        #else
+                                            #set($seconds = "$currentseconds")
+                                        #end
+                                        "runtime":"$currentday d $hours:$minutes:$seconds",
+                                    #end
+                                    
+                                    #if($actualdowntime <= 0)
+                                        "downtime" : "0 d 00:00:00",
+                                    #else
+                                        #set($hours = 0)
+                                        #set($minutes = 0)
+                                        #set($seconds = 0)
+                                        #set($currentday = 0)
+                                        #set($actualtime=$math.div($actualdowntime, 1000))
+                                        #set($actualtime=$math.toInteger($actualtime))
+                                        #set($currentminutes = $math.div($actualtime, 60))
+                                        #set($currenthours = $math.div($currentminutes, 60))
+                                        #set($currentday=$math.div($currenthours,24))
+                                        #set($currentday=$math.toInteger($currentday))
+                                        #set($currentminutes = $math.mod($currentminutes, 60))
+                                        #set($currenthours = $math.mod($currenthours, 24))
+                                        #set($currenthours = $math.toInteger($currenthours))
+                                        #set($currentminutes = $math.toInteger($currentminutes))
+                                        #set($currentseconds = $math.mod($actualtime, 60))
+                                        #if($currenthours < 10)
+                                            #set($hours = "0$currenthours")
+                                        #else
+                                            #set($hours = "$currenthours")
+                                        #end
+                                        #if($currentminutes < 10)
+                                            #set($minutes = "0$currentminutes")
+                                        #else
+                                            #set($minutes = "$currentminutes")
+                                        #end
+                                        #if($currentseconds < 10)
+                                            #set($seconds = "0$currentseconds")
+                                        #else
+                                            #set($seconds = "$currentseconds")
+                                        #end
+                                        "downtime":"$currentday d $hours:$minutes:$seconds",
+                                    #end
+
+                                    #set($currentday = 0)
+                                    #set($actualdelaytime = $math.div($actualdelay, 1000))
+                                    #set($actualdelaytime = $math.toInteger($actualdelaytime))
+                                    #set($currentminutes = $math.div($actualdelaytime, 60))
+                                    #set($currenthours = $math.div($currentminutes, 60))
+                                    #set($currentday=$math.div($currenthours,24))
+                                    #set($currentday=$math.toInteger($currentday))
+                                    #set($currentminutes = $math.mod($currentminutes, 60))
+                                    #set($currenthours = $math.mod($currenthours, 24))
+                                    #set($currenthours = $math.toInteger($currenthours))
+                                    #set($currentminutes = $math.toInteger($currentminutes))
+                                    #set($currentseconds = $math.mod($actualdelaytime, 60))
+                                    #set($hours = 0)
+                                    #set($minutes = 0)
+                                    #set($seconds = 0)
+                                    #if($currenthours < 10)
+                                    #set($hours = "0$currenthours")
+                                    #else
+                                    #set($hours = "$currenthours")
+                                    #end
+                                    #if($currentminutes < 10)
+                                    #set($minutes = "0$currentminutes")
+                                    #else
+                                    #set($minutes = "$currentminutes")
+                                    #end
+                                    #if($currentseconds < 10)
+                                    #set($seconds = "0$currentseconds")
+                                    #else
+                                    #set($seconds = "$currentseconds")
+                                    #end
+                                    "delaytimeinhr":"$currentday d $hours:$minutes:$seconds",
+                                    #set($availabletimeeff = $math.div($runtime, $TotalAvailableTime))
+                                    #set($availabletimeeff = $math.mul($availabletimeeff, 100))
+                                    #set($availabletimeeff = $math.roundTo(2, $availabletimeeff))
+                                    #if($availabletimeeff <= 0)
+                                        "availabletimeeff" : 0,
+                                    #else
+                                        "availabletimeeff" : $availabletimeeff,
+                                    #end
+                                    
+                                    #set($performanceeff = $math.div($totalproduced, $totaltarget))
+                                    #set($performanceeff = $math.mul($performanceeff, 100))
+                                    #set($performanceeff = $math.roundTo(2, $performanceeff))
+                                    #if($performanceeff <= 0)
+                                        "performanceeff" : 0,
+                                    #else
+                                        "performanceeff" : $performanceeff,
+                                    #end
+
+                                    #if($totalquantity != 0)
+                                        #set($qualityeff = $math.div($acceptedquantity, $totalquantity))
+                                        #set($qualityeff = $math.mul($qualityeff, 100))
+                                        #set($qualityeff = $math.roundTo(2, $qualityeff))
+                                        "qualityeff" : $qualityeff,
+                                    #else
+                                        "qualityeff" : "0",
+                                    #end
+
+                                    #if($qualityeff)
+                                        #set($midoee = $math.mul($availabletimeeff, $performanceeff))
+                                        #set($midoee = $math.mul($midoee, $qualityeff))
+                                        #set($midoee = $math.div($midoee, 10000))
+                                        #set($oee = $math.roundTo(2, $midoee))
+                                        #set($totaloee = $math.add($totaloee, $oee))
+                                        "oee" : $oee
+                                    #else
+                                        "oee" : 0
+                                    #end
+                                #end
+                            }
+                        #end
+                    #end
+                    #if($machinefound == 0)
+                        #if($number > 0)
+                            ,
+                        #end
+                        {
+                           #set($number = $number + 1)
+                            "number" : $number,
+                            "machinename" : $machinename,
+                            "shift" : $shiftval,
+                            "partname" : "No Production",
+							"scheduletype": "-",
+                            "partcode" : "-",
+                            "colour" : "-",
+                            "runtime" : "0 d 00:00:00", 
+                            "producedquantity" : 0,
+                            "rejectedquantity" : 0,
+                            "acceptedquantity" : 0,
+							"rejection" : 0,
+							"reworkquantity" : 0,
+							"rework" : 0,
+                            "purgeqty" : 0,
+                            "purgetime" : "0 d 00:00:00",
+                            "delaytimeinhr" : "0 d 00:00:00",
+							#set($actualdowntime = $math.mul($noofhours,3600000))
+				            #if($actualdowntime <= 0)
+                                "downtime" : "0 d 00:00:00",
+                            #else
+								#set($hours = 0)
+								#set($minutes = 0)
+								#set($seconds = 0)
+								#set($currentday = 0)
+								#set($actualtime=$math.div($actualdowntime, 1000))
+								#set($actualtime=$math.toInteger($actualtime))
+								#set($currentminutes = $math.div($actualtime, 60))
+								#set($currenthours = $math.div($currentminutes, 60))
+								#set($currentday=$math.div($currenthours,24))
+								#set($currentday=$math.toInteger($currentday))
+								#set($currentminutes = $math.mod($currentminutes, 60))
+								#set($currenthours = $math.mod($currenthours, 24))
+								#set($currenthours = $math.toInteger($currenthours))
+								#set($currentminutes = $math.toInteger($currentminutes))
+								#set($currentseconds = $math.mod($actualtime, 60))
+								#if($currenthours < 10)
+									#set($hours = "0$currenthours")
+								#else
+									#set($hours = "$currenthours")
+								#end
+								#if($currentminutes < 10)
+									#set($minutes = "0$currentminutes")
+								#else
+									#set($minutes = "$currentminutes")
+								#end
+								#if($currentseconds < 10)
+									#set($seconds = "0$currentseconds")
+								#else
+									#set($seconds = "$currentseconds")
+								#end
+								"downtime":"$currentday d $hours:$minutes:$seconds",
+                            #end
+				            "availabletimeeff" : 0,
+				            "performanceeff" : 0,
+				            "qualityeff" : 0,
+				            "oee" : 0
+                        }
+                    #end
+				#end
+			#end
+			
+		],
+		"records" : $number
+}

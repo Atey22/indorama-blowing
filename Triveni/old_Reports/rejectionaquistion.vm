@@ -1,0 +1,286 @@
+{
+"name" : "Rejection Data Entry - Shift-wise",
+"cols" : [{"name" : "machine", "type" : "String", "description" : "Machine"},
+{"name" : "part", "type" : "String", "description" : "Part"},
+{"name" : "shift", "type" : "String", "description" : "Shift"},
+{"name" : "lasthour", "type" : "String", "description" : "Last Hour"},
+{"name" : "productionplanid", "type" : "String", "description" : "Plan Id"},
+{"name" : "productionstarttime", "type" : "String", "description" : "Production Start Time"},
+{"name" : "productionendtime", "type" : "String", "description" : "Production End Time"},
+{"name" : "producedquantity", "type" : "String", "description" : "Produced"},
+{"name" : "rejectedquantity", "type" : "String", "description" : "Rejected"},
+{"name" : "totalreworkquantity", "type" : "String", "description" : "Rework"},
+{"name" : "actualquantity", "type" : "String", "description" : "Accepted"},
+{"name" : "site", "type" : "String", "description" : "Site"}
+],
+"rowDetails" : [
+{"name" : "id", "type" : "String", "description" : "Object Id"},
+{"name" : "defect", "type" : "String", "description" : "Defect"},
+{"name" : "defectcode", "type" : "String", "description" : "Defect Code"},
+{"name" : "wastagereason", "type" : "String", "description" : "Wastage Reason"},
+{"name" : "wastagecode", "type" : "String", "description" : "Wastage Code"},
+{"name" : "quantityrejected", "type" : "String", "description" : "Rejected"},
+{"name" : "weight", "type" : "String", "description" : "Weight"},
+{"name" : "remark", "type" : "String", "description" : "Remark"}
+],"reworkDetails" : [
+{"name" : "id", "type" : "String", "description" : "Object Id"},
+{"name" : "rework", "type" : "String", "description" : "Rework"},
+{"name" : "reworkcode", "type" : "String", "description" : "Rework Code"},
+{"name" : "reworkquantity", "type" : "String", "description" : "Rework Qty"},
+{"name" : "weight", "type" : "String", "description" : "Weight"},
+{"name" : "remark", "type" : "String", "description" : "Remark"}
+],"lumpDetails" : [
+{"name" : "id", "type" : "String", "description" : "Object Id"},
+{"name" : "lump", "type" : "String", "description" : "lump"},
+{"name" : "lumpweight", "type" : "String", "description" : "lumpweight"},
+{"name" : "remark", "type" : "String", "description" : "remark"},
+{"name" : "weight", "type" : "String", "description" : "weight"}
+],
+#set($count = 0)
+"reportData" : [
+#set($rejection = $resultmap.rejection)
+#set($rework = $resultmap.rework)
+#set($lump = $resultmap.lump)
+#set($hold = $resultmap.hold)
+#set($cycletime = $resultmap.cycletime)
+#set($shiftelement = $resultmap.shift)
+#set($partelement = $resultmap.planning)
+#set($hourelement = $resultmap.hour)
+#set($velocitycycletime = $velocityparameter.cycletime)
+#set($starttime = $velocitycycletime.get("starttime"))
+#set($endtime = $velocitycycletime.get("endtime"))
+#foreach($record in $cycletime)
+#set($productionplanid = $record.get("_id").productionplanid)
+#set($shift = $record.get("_id").shift)
+#set($shifthour = $record.get("lasthour"))
+#set($actualhour = "")
+#foreach($hr in $hourelement)
+#if($hr.get("hour") == $shifthour)
+#set($actualhour = $hr.get("actualhour"))
+#break
+#end
+#end
+#if($count > 0)
+,
+#end
+#set($productionstarttime = $record.get("injectionstarttime"))
+#set($productionendtime = $record.get("injectionendtime"))
+#if($starttime > $productionstarttime)
+#set($productionstarttime = $starttime)
+#end
+#if($endtime < $productionendtime)
+#set($productionendtime = $endtime)
+#end
+{
+"elementName" : "rejection",
+"machine" : $record.get("_id").machinename,
+"part" : $record.get("_id").partname,
+#foreach($part in $partelement)
+#if($part.get("_id").machinename == $record.get("_id").machinename && $part.get("_id").planid == $record.get("_id").productionplanid)
+#set($grossweight = $part.get("_id").grossweight)
+#end
+#end
+#if(!$grossweight)
+"grossweight" : 0,
+#else
+"grossweight" : $grossweight,
+#end
+"shift" : $shift,
+"lasthour" : $actualhour,
+"site" : $record.get("_id").sitename,
+"productionplanid" : $productionplanid,
+"productionstarttime" : $productionstarttime,
+"productionendtime" : $productionendtime,
+#set($totalrejections = 0)
+#set($totalrework = 0)
+## For Rejection
+#foreach($rec in $rejection)
+#if($shift == $rec.get("_id").shift && $productionplanid == $rec.get("_id").productionplanid && $record.get("_id").partname == $rec.get("_id").partname)
+#if($rec.get("_id").defect)
+#set($totalrejections = $math.add($totalrejections, $rec.get("totalquantity")))
+#set($totalrejections = $math.round($totalrejections))
+#end
+#end
+#end
+## For Rework
+#foreach($rec in $rework)
+#if($shift == $rec.get("_id").shift && $productionplanid == $rec.get("_id").productionplanid && $record.get("_id").partname == $rec.get("_id").partname)
+#if($rec.get("_id").rework)
+#set($totalrework = $math.add($totalrework, $rec.get("totalreworkquantity")))
+#set($totalrework = $math.round($totalrework))
+#end
+#end
+#end
+#set($producedquantity = $math.round($record.get("totalquantity")))
+#set($actualquantity = $math.sub($producedquantity, $totalrejections))
+"producedquantity" : $producedquantity,
+"actualquantity" : $actualquantity,
+"rejectedquantity" : $totalrejections,
+"totalreworkquantity" : $totalrework,
+#set($productCount = 0)
+"rowDetails" : [
+#if($rejection)
+#set($c = 0)
+#foreach($rec in $rejection)
+#if($shift == $rec.get("_id").shift && $productionplanid == $rec.get("_id").productionplanid && $record.get("_id").partname == $rec.get("_id").partname && $rec.get("_id").defect )
+#if($c > 0)
+,
+#end
+{
+"id" : $rec.get("_id").objectid,
+"type":"Rejection",
+#if(!$rec.get("_id").defect)
+"defect":"-",
+#else
+"defect" : $rec.get("_id").defect,
+#end
+#if(!$rec.get("_id").defectcode)
+"defectcode" : "-",
+#else
+"defectcode" : $rec.get("_id").defectcode,
+#end
+#if(!$rec.get("_id").wastagereason)
+"wastagereason" : "-",
+"wastagecode" : "-",
+#else
+"wastagereason" : $rec.get("_id").wastagereason,
+"wastagecode" : $rec.get("_id").wastagecode,
+#end
+#if(!$rec.get("_id").remark)
+"remark" : "",
+#else
+"remark" : $rec.get("_id").remark,
+#end
+"quantityrejected" : $rec.get("totalquantity"),
+#if(!$rec.get("_id").weight)
+"weight" : 0
+#else
+"weight" : $rec.get("_id").weight
+#end
+}
+#set($c = $c + 1)
+#end
+#end
+#end
+],
+"reworkDetails" : [
+#if($rejection)
+#set($c = 0)
+#foreach($rec in $rework)
+#if($shift == $rec.get("_id").shift && $productionplanid == $rec.get("_id").productionplanid && $record.get("_id").partname == $rec.get("_id").partname && $rec.get("_id").rework)
+#if($c > 0)
+,
+#end
+{
+"id" : $rec.get("_id").objectid,
+"type":"Rework",
+## rework start
+#if(!$rec.get("_id").rework)
+"rework" : "-",
+#else
+"rework" : $rec.get("_id").rework,
+#end
+#if(!$rec.get("_id").reworkcode)
+"reworkcode" : "-",
+#else
+"reworkcode" : $rec.get("_id").reworkcode,
+#end
+#if(!$rec.get("_id").reworksubcategory)
+"reworksubcategory" : "-",
+"reworksubcategorycode" : "-",
+#else
+"reworksubcategory" : $rec.get("_id").reworksubcategory,
+"reworksubcategorycode" : $rec.get("_id").reworksubcategorycode,
+#end
+## rework end
+#if(!$rec.get("_id").remark)
+"remark" : "",
+#else
+"remark" : $rec.get("_id").remark,
+#end
+"reworkquantity" : $rec.get("totalreworkquantity"),
+#if(!$rec.get("_id").weight)
+"weight" : 0
+#else
+"weight" : $rec.get("_id").weight
+#end
+}
+#set($c = $c + 1)
+#end
+#end
+#end
+],
+"lumpDetails" : [
+#if($rejection)
+#set($c = 0)
+#foreach($rec in $lump)
+#if($shift == $rec.get("_id").shift && $productionplanid == $rec.get("_id").productionplanid && $record.get("_id").partname == $rec.get("_id").partname && $rec.get("_id").lumpreason)
+#if($c > 0)
+,
+#end
+{
+"id" : $rec.get("_id").objectid,
+"type":"Lump",
+## rework start
+#if(!$rec.get("_id").lumpreason)
+"lumpreason" : "-",
+#else
+"lumpreason" : $rec.get("_id").lumpreason,
+#end
+## rework end
+#if(!$rec.get("_id").remark)
+"remark" : "",
+#else
+"remark" : $rec.get("_id").remark,
+#end
+#if(!$rec.get("_id").weight)
+"weight" : 0
+#else
+"weight" : $rec.get("_id").weight
+#end
+}
+#set($c = $c + 1)
+#end
+#end
+#end
+],
+"holdDetails" : [
+#if($rejection)
+#set($c = 0)
+#foreach($rec in $hold)
+#if($shift == $rec.get("_id").shift && $productionplanid == $rec.get("_id").productionplanid && $record.get("_id").partname == $rec.get("_id").partname && $rec.get("_id").holdreason)
+#if($c > 0)
+,
+#end
+{
+"id" : $rec.get("_id").objectid,
+"type":"Hold",
+## rework start
+#if(!$rec.get("_id").holdreason)
+"holdreason" : "-",
+#else
+"holdreason" : $rec.get("_id").holdreason,
+#end
+## rework end
+#if(!$rec.get("_id").remark)
+"remark" : "",
+#else
+"remark" : $rec.get("_id").remark,
+#end
+#if(!$rec.get("_id").weight)
+"weight" : 0
+#else
+"weight" : $rec.get("_id").weight
+#end
+}
+#set($c = $c + 1)
+#end
+#end
+#end
+]
+}
+#set($count = $count + 1)
+#end
+],
+"records" : $count
+}

@@ -1,0 +1,877 @@
+{
+"name" : "Production - Hourly Report",
+"params" : [{"marginleft" : "0.5in","marginright" : "0.5in"}],
+"cols" : [{"name" : "number", "type" : "number", "description" : "Sr. No"},
+{"name" : "hour", "type" : "String", "description" : "Hour"},
+{"name" : "machinename", "type" : "String", "description" : "Machine"},
+{"name" : "part", "type" : "String", "description" : "Lot Number"},
+{"name" : "scheduletype", "type" : "String", "description" : "Schedule Type"},
+##{"name" : "colour", "type" : "String", "description" : "Colour"},
+##{"name" : "cavity", "type" : "number", "description" : "Cavities Avl"},
+##{"name" : "activecavity", "type" : "number", "description" : "Cavities Used"},
+{"name" : "targetquantity", "type" : "long", "description" : "Hourly Target"},
+{"name" : "producedquantity", "type" : "long", "description" : "Produced Qty"},
+{"name" : "controllablerejectedquantity", "type" : "long", "description" : "Rejected Qty"},
+{"name" : "rejectionpercent","type":"number","description":"Rejection %"},
+##{"name" : "reworkquantity","type":"long","description":"Rework Qty"},
+##{"name" : "rework","type":"number","description":"Rework %"},
+{"name" : "acceptedquantity", "type" : "long", "description" : "Accepted Qty"},
+##{"name" : "purgeqty", "type" : "long", "description" : "Purged Qty"},
+{"name" : "noplanshots", "type" : "long", "description" : "No Plan Shots"},
+{"name" : "workingtime", "type" : "String", "description" : "Working Time (mm : ss)"},
+##{"name" : "purgetime", "type" : "String", "description" : "Purge Time (mm : ss)"},
+{"name" : "noplantime", "type" : "String", "description" : "No Plan Time (mm: ss)"},
+{"name" : "delaytimeinhr", "type" : "String", "description" : "Delay Time (mm : ss)"},
+{"name" : "downtimeinhr", "type" : "String", "description" : "Down Time (mm : ss)"}
+],
+#set($count = 0)
+#set($number = 0)
+#set($find = 0)
+"reportData" : [
+#set($planning = $resultmap.planning)
+#set($cycletime = $resultmap.cycletime)
+#set($cycletimepurging = $resultmap.cycletimepurging)
+#set($downtime = $resultmap.downtime)
+#set($delay = $resultmap.delay)
+#set($rejectioncontrollable = $resultmap.rejection)
+#set($hour = $resultmap.hour)
+#set($cycletimefornoplan = $resultmap.cycletimefornoplan)
+#set($machine = $resultmap.machine)
+#set($secondsinhour = 3600)
+#set($hrs = [])
+#set($ms = [])
+#set($found = 0)
+#set($cumulativetargetquantity = 0)
+#set($cumulativeproducedquantity = 0)
+#set($cumulativeacceptedquantity = 0)
+#set($cumulativecontrollablerejectedquantity = 0)
+#set($cumulativedowntimeinmin = 0)
+#set($cumulativedelaytimeinmin = 0)
+#foreach($record in $hour)
+#set($machinearray = [])
+#set($flag = 0)
+#foreach($macrec in $machine)
+#set($ms = [])
+#set($plan = [])
+#foreach($rec in $cycletime)
+#if($rec.get("_id").hour == $record.get("_id").hour && $macrec.get("_id").machinename == $rec.get("_id").machinename)
+#set($find = 1)
+#set($found = 0)
+#foreach($hr in $hrs)
+#if($hr == $rec.get("_id").hour)
+#set($found = 1)
+#break
+#end
+#end
+#if($count > 0)
+,
+#end
+{
+#set($a = $hrs.add($rec.get("_id").hour))
+#set($number = $number + 1)
+"number" : $number,
+"machinename" : $rec.get("_id").machinename,
+#set($m=$machinearray.add($rec.get("_id").machinename))
+#set($foundmachine = 0)
+#foreach($p in $ms)
+#if($p == $rec.get("_id").machinename)
+#set($foundmachine = 1)
+#break
+#end
+#end
+#set($a = $ms.add($rec.get("_id").machinename))
+#set($foundplan = 0)
+#foreach($p in $plan)
+#if($p == $rec.get("_id").productionplanid)
+#set($foundplan = 1)
+#break
+#end
+#end
+#set($a = $plan.add($rec.get("_id").productionplanid))
+#if($flag == 0)
+"hour" : $record.get("_id").actualhour,
+#set($flag = 1)
+#end
+"hourforoas" : $record.get("_id").actualhour,
+#if(!$rec.get("_id").partcode)
+"part" : "-",
+#else
+"part" : $rec.get("_id").partcode,
+#end
+## "part":$rec.get("_id").partname,
+#if(!$rec.get("_id").partname)
+"part":"-",
+#else
+"part":$rec.get("_id").partname,
+#end
+#if(!$rec.get("_id").colour)
+"colour" : "-",
+#else
+"colour" : $rec.get("_id").colour,
+#end
+#set($cavity = 0)
+#set($activecavity = 0)
+#set($planid = '"-"')
+#set($scheduletype = '"-"')
+#set($plancycletime = 0)
+#set($plans = [])
+#set($planwt = [])
+#set($planpt = [])
+#foreach($r in $cycletime)
+#if($rec.get("_id").machinename == $r.get("_id").machinename)
+#if(!$plans.contains($r.get("_id").productionplanid))
+#set($abc = $plans.add($r.get("_id").productionplanid))
+#end
+#end
+#end
+#foreach($r in $planning)
+#if($rec.get("_id").productionplanid == $r.get("_id").planid && $rec.get("_id").partname == $r.get("_id").partname)
+#set($cavity = $r.get("_id").cavities)
+#set($cavity = $math.toInteger($cavity))
+#set($activecavity = $r.get("_id").activecavity)
+#set($scheduletype = $r.get("_id").scheduletype)
+#set($activecavity = $math.toInteger($activecavity))
+#set($planid = $r.get("_id").planid)
+#set($plancycletime = $r.get("_id").cycletime)
+#set($plancycletime= $number.toNumber($plancycletime))
+#**
+#set($plancycletime = "$plancycletime")
+#set($strlen = $plancycletime.length())
+#set($strlen = $math.sub($strlen,1))
+#set($plancycletime = $plancycletime.substring(1,$strlen))
+*#
+#break
+#end
+#end
+"scheduletype":$scheduletype,
+#set($actualdelay = 0)
+#foreach($r in $delay)
+#if($rec.get("_id").hour == $r.get("_id").hour && $rec.get("_id").machinename == $r.get("_id").machinename)
+#set($actualdelay = $math.add($actualdelay, $r.get("downtime")))
+#end
+#end
+#set($noplanshots = "")
+#set($noplantime = 0)
+#foreach($noplanrec in $cycletimefornoplan)
+#if($rec.get("_id").machinename == $noplanrec.get("_id").machinename && $rec.get("_id").hour == $noplanrec.get("_id").hour)
+#set($noplanshots = $noplanrec.get("totalshots"))
+#set($noplantime = $noplanrec.get("noplantime"))
+#end
+#end
+#if($foundmachine == 0)
+#if($noplanshots == "")
+"noplanshots" : "0",
+#else
+"noplanshots" : $noplanshots,
+#end
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualnoplantime = $math.div($noplantime, 1000))
+#set($actualnoplantime = $math.toInteger($actualnoplantime))
+#if($actualnoplantime < 60)
+#if($actualnoplantime < 10)
+"noplantime":"$min:$seconds$actualnoplantime",
+#else
+"noplantime":"$min:$actualnoplantime",
+#end
+#else
+#set($currentminutes = $math.div($actualnoplantime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualnoplantime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"noplantime":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"noplantime":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"noplantime":"$minutes$currentminutes:$currentseconds",
+#else
+"noplantime":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"noplantime":"$minutes$currentminutes:$currentseconds",
+#else
+"noplantime":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#end
+#if($foundmachine == 0)
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualDelayTime = $math.div($actualdelay, 1000))
+#set($actualDelayTime = $math.toInteger($actualDelayTime))
+#if($actualDelayTime < 60)
+#if($actualDelayTime < 10)
+"delaytimeinhr":"$min:$seconds$actualDelayTime",
+#else
+"delaytimeinhr":"$min:$actualDelayTime",
+#end
+#else
+#set($currentminutes = $math.div($actualDelayTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualDelayTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"delaytimeinhr":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"delaytimeinhr":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"delaytimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"delaytimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"delaytimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"delaytimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#end
+#foreach($r in $cycletimepurging)
+#if($macrec.get("_id").machinename == $r.get("_id").machinename)
+#if(!$planpt.contains($r.get("_id").productionplanid))
+#set($klm = $planpt.add($r.get("_id").productionplanid))
+#end
+#end
+#end
+#set($totalpt = 0)
+#foreach($r in $cycletimepurging)
+#if($rec.get("_id").hour == $r.get("_id").hour && $rec.get("_id").machinename == $r.get("_id").machinename)
+#if($planpt.contains($r.get("_id").productionplanid))
+#set($totalpt = $math.add($totalpt, $r.get("totalcycletime")))
+#set($poi = $planpt.remove($r.get("_id").productionplanid))
+#end
+#end
+#end
+#set($purgetime = 0)
+#set($purgequantity = 0)
+#foreach($r in $cycletimepurging)
+#if($rec.get("_id").hour == $r.get("_id").hour && $rec.get("_id").machinename == $r.get("_id").machinename && $rec.get("_id").productionplanid == $r.get("_id").productionplanid && $rec.get("_id").partname == $r.get("_id").partname)
+#set($purgetime = $math.add($purgetime, $r.get("totalcycletime")))
+#set($purgequantity = $math.add($purgequantity, $r.get("totalquantity")))
+#set($purgequantity = $math.round($purgequantity))
+#end
+#end
+"purgeqty" : $purgequantity,
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualPurgeTime = $math.div($purgetime, 1000))
+#set($actualPurgeTime = $math.toInteger($actualPurgeTime))
+#if($actualPurgeTime < 60)
+#if($actualPurgeTime < 10)
+"purgetime":"$min:$seconds$actualPurgeTime",
+#else
+"purgetime":"$min:$actualPurgeTime",
+#end
+#else
+#set($currentminutes = $math.div($actualPurgeTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualPurgeTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"purgetime":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"purgetime":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"purgetime":"$minutes$currentminutes:$currentseconds",
+#else
+"purgetime":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"purgetime":"$minutes$currentminutes:$currentseconds",
+#else
+"purgetime":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#foreach($r in $cycletime)
+#if($rec.get("_id").machinename == $r.get("_id").machinename)
+#if(!$planwt.contains($r.get("_id").productionplanid))
+#set($abc = $planwt.add($r.get("_id").productionplanid))
+#end
+#end
+#end
+#set($totalwt = 0)
+#foreach($ctrec in $cycletime)
+#if($ctrec.get("_id").machinename == $rec.get("_id").machinename && $ctrec.get("_id").hour == $rec.get("_id").hour)
+#if($planwt.contains($ctrec.get("_id").productionplanid))
+#set($totalwt = $math.add($totalwt, $ctrec.get("totalcycletime")))
+#set($pqr = $planwt.remove($ctrec.get("_id").productionplanid))
+#end
+#end
+#end
+#set($workingtime = 0)
+#foreach($ct in $cycletime)
+#if($ct.get("_id").machinename == $rec.get("_id").machinename && $ct.get("_id").hour == $rec.get("_id").hour && $ct.get("_id").partname == $rec.get("_id").partname && $rec.get("_id").productionplanid == $ct.get("_id").productionplanid)
+#if($plans.contains($ct.get("_id").productionplanid))
+#set($workingtime = $math.add($workingtime, $ct.get("totalcycletime")))
+#set($xyz = $plans.remove($ct.get("_id").productionplanid))
+#end
+#end
+#end
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualWorkingTime = $math.div($workingtime, 1000))
+#set($actualWorkingTime = $math.toInteger($actualWorkingTime))
+#if($actualWorkingTime < 60)
+#if($actualWorkingTime < 10)
+"workingtime":"$min:$seconds$actualWorkingTime",
+#else
+"workingtime":"$min:$actualWorkingTime",
+#end
+#else
+#set($currentminutes = $math.div($actualWorkingTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualWorkingTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"workingtime":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"workingtime":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"workingtime":"$minutes$currentminutes:$currentseconds",
+#else
+"workingtime":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"workingtime":"$minutes$currentminutes:$currentseconds",
+#else
+"workingtime":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+"sec":$secondsinhour,
+#if($plancycletime == 0)
+#set($targetquantity = 0)
+#else
+#set($targetquantity = 0)
+#set($targetquantity = $math.div($secondsinhour, $plancycletime))
+#set($targetquantity = $math.mul($targetquantity, $activecavity))
+#set($targetquantity = $math.toInteger($targetquantity))
+#end
+#set($totalworkingtime = $math.add($totalwt, $totalpt))
+#set($totalworkingtime = $math.add($totalworkingtime, $actualdelay))
+#set($totalworkingtime = $math.add($totalworkingtime, $noplantime))
+#set($actualdowntime = $math.sub(3600000, $totalworkingtime))
+#set($calcdwntime = 1)
+#if($actualdowntime < 0)
+"downtimeinhr" : "00:00",
+#set($calcdwntime = 0)
+#end
+#if($foundmachine == 0 && $calcdwntime == 1)
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualDownTime = $math.div($actualdowntime, 1000))
+#set($actualDownTime = $math.toInteger($actualDownTime))
+#if($actualDownTime < 60)
+#if($actualDownTime < 10)
+"downtimeinhr":"$min:$seconds$actualDownTime",
+#else
+"downtimeinhr":"$min:$actualDownTime",
+#end
+#else
+#set($currentminutes = $math.div($actualDownTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualDownTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"downtimeinhr":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"downtimeinhr":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"downtimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"downtimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"downtimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"downtimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#end
+"cavity" : $cavity,
+"activecavity": $activecavity,
+"planid" : $planid,
+#if($foundplan ==0)
+"targetquantity" : $targetquantity,
+#end
+#set($controllablerejectedquantity = 0)
+#set($reworkquantity = 0)
+#set($reworkpercent = 0)
+#set($rejectionpercent = 0)
+#set($uncontrollablerejectedquantity = 0)
+#foreach($r in $rejectioncontrollable)
+#if($rec.get("_id").hour == $r.get("_id").hour && $rec.get("_id").machinename == $r.get("_id").machinename && $rec.get("_id").partname == $r.get("_id").partname)
+#if($rec.get("_id").productionplanid == $r.get("_id").productionplanid)
+#set($controllablerejectedquantity = $r.get("rejectedquantity"))
+#set($controllablerejectedquantity = $math.round($controllablerejectedquantity))
+#set($reworkquantity = $math.round($r.get("reworkquantity")))
+#end
+#end
+#end
+#set($rejectedquantity = $controllablerejectedquantity)
+#set($acceptedquantity = $math.sub($math.round($rec.get("totalquantity")), $rejectedquantity))
+#set($producedquantity = $math.round($rec.get("totalquantity")))
+#set($rejectionpercent=$math.div($rejectedquantity,$rec.get("totalquantity")))
+#set($rejectionpercent=$math.mul($rejectionpercent,100))
+#set($rejectionpercent=$math.roundTo(2,$rejectionpercent))
+#set($reworkpercent=$math.div($reworkquantity,$rec.get("totalquantity")))
+#set($reworkpercent=$math.mul($reworkpercent,100))
+#set($reworkpercent=$math.roundTo(2,$reworkpercent))
+#set($purgedquantity = 0)
+#set($purgingtime = 0)
+"targetquantityforoas" : $targetquantity,
+"producedquantity" : $producedquantity,
+"acceptedquantity" : $acceptedquantity,
+"reworkquantity" : $reworkquantity,
+"rework" : $reworkpercent,
+"rejectionpercent" : $rejectionpercent,
+"controllablerejectedquantity" : $controllablerejectedquantity
+}
+#set($found = 0)
+#set($count = $count + 1)
+#end
+#end
+#if(!$machinearray.contains($macrec.get("_id").machinename))
+#foreach($r in $cycletimepurging)
+#if($r.get("_id").hour == $record.get("_id").hour && $macrec.get("_id").machinename == $r.get("_id").machinename)
+#set($found = 0)
+#foreach($hr in $hrs)
+#if($hr == $r.get("_id").hour)
+#set($found = 1)
+#break
+#end
+#end
+#if($count > 0)
+,
+#end
+{
+#set($a = $hrs.add($r.get("_id").hour))
+#set($number = $number + 1)
+"number" : $number,
+"machinename" : $r.get("_id").machinename,
+#set($m=$machinearray.add($r.get("_id").machinename))
+#set($foundmachine = 0)
+#foreach($p in $ms)
+#if($p == $r.get("_id").machinename)
+#set($foundmachine = 1)
+#break
+#end
+#end
+#set($a = $ms.add($r.get("_id").machinename))
+#set($foundplan = 0)
+#foreach($p in $plan)
+#if($p == $r.get("_id").productionplanid)
+#set($foundplan = 1)
+#break
+#end
+#end
+#set($a = $plan.add($r.get("_id").productionplanid))
+#if($flag == 0)
+"hour" : $record.get("_id").actualhour,
+#set($flag = 1)
+#end
+"hourforoas" : $record.get("_id").actualhour,
+#if(!$r.get("_id").partcode)
+"part" : "-",
+#else
+"part" : $r.get("_id").partcode,
+#end
+#if(!$r.get("_id").partname)
+"part" : "-",
+#else
+"part" : $r.get("_id").partname,
+#end
+#if(!$r.get("_id").colour)
+"colour" : "-",
+#else
+"colour" : $r.get("_id").colour,
+#end
+#set($cavity = 0)
+#set($activecavity = 0)
+#set($planid = '"-"')
+#set($scheduletype = '"-"')
+#set($plancycletime = 0)
+#set($plans = [])
+#set($planpt = [])
+#foreach($r in $cycletimepurging)
+#if($macrec.get("_id").machinename == $r.get("_id").machinename)
+#if(!$plans.contains($r.get("_id").productionplanid))
+#set($abc = $plans.add($r.get("_id").productionplanid))
+#end
+#end
+#end
+#foreach($p in $planning)
+#if($r.get("_id").productionplanid == $p.get("_id").planid && $r.get("_id").partname == $p.get("_id").partname)
+#set($cavity = $p.get("_id").cavities)
+#set($cavity = $math.toInteger($cavity))
+#set($activecavity = $p.get("_id").activecavity)
+#set($activecavity = $math.toInteger($activecavity))
+#set($planid = $r.get("_id").planid)
+#set($plancycletime = $p.get("_id").cycletime)
+#set($scheduletype = $r.get("_id").scheduletype)
+#**
+#set($plancycletime = "$plancycletime")
+#set($strlen = $plancycletime.length())
+#set($strlen = $math.sub($strlen,1))
+#set($plancycletime = $plancycletime.substring(1,$strlen))
+*#
+#break
+#end
+#end
+"scheduletype":$scheduletype,
+#set($actualdelay = 0)
+#foreach($d in $delay)
+#if($r.get("_id").hour == $d.get("_id").hour && $r.get("_id").machinename == $d.get("_id").machinename)
+#set($actualdelay = $math.add($actualdelay, $d.get("downtime")))
+#end
+#end
+#set($noplanshots = "")
+#if($foundmachine == 0)
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualDelayTime = $math.div($actualdelay, 1000))
+#set($actualDelayTime = $math.toInteger($actualDelayTime))
+#if($actualDelayTime < 60)
+#if($actualDelayTime < 10)
+"delaytimeinhr":"$min:$seconds$actualDelayTime",
+#else
+"delaytimeinhr":"$min:$actualDelayTime",
+#end
+#else
+#set($currentminutes = $math.div($actualDelayTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualDelayTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"delaytimeinhr":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"delaytimeinhr":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"delaytimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"delaytimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"delaytimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"delaytimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#end
+#foreach($r in $cycletimepurging)
+#if($macrec.get("_id").machinename == $r.get("_id").machinename)
+#if(!$planpt.contains($r.get("_id").productionplanid))
+#set($klm = $planpt.add($r.get("_id").productionplanid))
+#end
+#end
+#end
+#set($totalpt = 0)
+#if($record.get("_id").hour == $r.get("_id").hour && $macrec.get("_id").machinename == $r.get("_id").machinename)
+#if($planpt.contains($r.get("_id").productionplanid))
+#set($totalpt = $math.add($totalpt, $r.get("totalcycletime")))
+#set($poi = $planpt.remove($r.get("_id").productionplanid))
+#end
+#end
+#set($purgetime = 0)
+#set($purgequantity = 0)
+#foreach($ctp in $cycletimepurging)
+#if($record.get("_id").hour == $ctp.get("_id").hour && $macrec.get("_id").machinename == $ctp.get("_id").machinename && $r.get("_id").productionplanid == $ctp.get("_id").productionplanid && $r.get("_id").partname == $ctp.get("_id").partname)
+#set($purgetime = $math.add($purgetime, $ctp.get("totalcycletime")))
+#set($purgequantity = $math.add($purgequantity, $ctp.get("totalquantity")))
+#set($purgequantity = $math.round($purgequantity))
+#end
+#end
+"purgeqty" : $purgequantity,
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualPurgeTime = $math.div($purgetime, 1000))
+#set($actualPurgeTime = $math.toInteger($actualPurgeTime))
+#if($actualPurgeTime < 60)
+#if($actualPurgeTime < 10)
+"purgetime":"$min:$seconds$actualPurgeTime",
+#else
+"purgetime":"$min:$actualPurgeTime",
+#end
+#else
+#set($currentminutes = $math.div($actualPurgeTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualPurgeTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"purgetime":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"purgetime":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"purgetime":"$minutes$currentminutes:$currentseconds",
+#else
+"purgetime":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"purgetime":"$minutes$currentminutes:$currentseconds",
+#else
+"purgetime":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#if($plancycletime == 0)
+#set($targetquantity = 0)
+#else
+#set($targetquantity = $math.div($secondsinhour, $plancycletime))
+#set($targetquantity = $math.mul($targetquantity, $activecavity))
+#set($targetquantity = $math.toInteger($targetquantity))
+#end
+#set($totalwt = 0)
+#set($noplantime = 0)
+#set($totalworkingtime = $math.add($totalwt, $totalpt))
+#set($totalworkingtime = $math.add($totalworkingtime, $actualdelay))
+#set($totalworkingtime = $math.add($totalworkingtime, $noplantime))
+#set($actualdowntime = $math.sub(3600000, $totalworkingtime))
+#set($calcdwntime = 1)
+#if($actualdowntime < 0)
+"downtimeinhr" : "00:00",
+#set($calcdwntime = 0)
+#end
+#if($foundmachine == 0 && $calcdwntime == 1)
+#set($min = "00")
+#set($minutes = 0)
+#set($seconds = 0)
+#set($actualDownTime = $math.div($actualdowntime, 1000))
+#set($actualDownTime = $math.toInteger($actualDownTime))
+#if($actualDownTime < 60)
+#if($actualDownTime < 10)
+"downtimeinhr":"$min:$seconds$actualDownTime",
+#else
+"downtimeinhr":"$min:$actualDownTime",
+#end
+#else
+#set($currentminutes = $math.div($actualDownTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualDownTime, 60))
+#if($currentseconds > 0)
+#if($currentseconds < 10)
+#if($currentminutes < 10)
+"downtimeinhr":"$minutes$currentminutes:$seconds$currentseconds",
+#else
+"downtimeinhr":"$currentminutes:$seconds$currentseconds",
+#end
+#else
+#if($currentminutes < 10)
+"downtimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"downtimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#else
+#set($currentseconds="00")
+#if($currentminutes < 10)
+"downtimeinhr":"$minutes$currentminutes:$currentseconds",
+#else
+"downtimeinhr":"$currentminutes:$currentseconds",
+#end
+#end
+#end
+#end
+"cavity" : $cavity,
+"activecavity": $activecavity,
+"planid": $planid,
+#if($foundplan ==0)
+"targetquantity" : $targetquantity,
+#end
+}
+#set($found = 0)
+#set($count = $count + 1)
+#end
+#end
+#end
+#if(!$machinearray.contains($macrec.get("_id").machinename))
+#set($noplanshots = 0)
+#set($noplantime = 0)
+#set($noplanrunmc = 0)
+#foreach($noplanrec in $cycletimefornoplan)
+#if($record.get("_id").hour == $noplanrec.get("_id").hour && $macrec.get("_id").machinename == $noplanrec.get("_id").machinename)
+#set($noplanrunmc = 1)
+#set($currentday = 0)
+#set($noplanshots = $noplanrec.get("totalshots"))
+#set($noplantime = $noplanrec.get("noplantime"))
+#set($actualnoplantime = $math.div($noplantime, 1000))
+#set($actualnoplantime = $math.toInteger($actualnoplantime))
+#set($currentminutes = $math.div($actualnoplantime, 60))
+#set($currenthours = $math.div($currentminutes, 60))
+#set($currentday=$math.div($currenthours,24))
+#set($currentday=$math.toInteger($currentday))
+#set($currentminutes = $math.mod($currentminutes, 60))
+#set($currenthours = $math.mod($currenthours, 24))
+#set($currenthours = $math.toInteger($currenthours))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentseconds = $math.mod($actualnoplantime, 60))
+#set($hours = 0)
+#set($minutes = 0)
+#set($seconds = 0)
+#if($currenthours < 10)
+#set($hours = "0$currenthours")
+#else
+#set($hours = "$currenthours")
+#end
+#if($currentminutes < 10)
+#set($minutes = "0$currentminutes")
+#else
+#set($minutes = "$currentminutes")
+#end
+#if($currentseconds < 10)
+#set($seconds = "0$currentseconds")
+#else
+#set($seconds = "$currentseconds")
+#end
+#if($count > 0)
+,
+#end
+{
+"noplantime":"$minutes:$seconds",
+#set($m=$machinearray.add($noplanrec.get("_id").machinename))
+#set($actualdelay = 0)
+#foreach($r in $delay)
+#if($record.get("_id").hour == $r.get("_id").hour && $macrec.get("_id").machinename == $r.get("_id").machinename)
+#set($actualdelay = $r.get("downtime"))
+#break
+#end
+#end
+#set($actualDelayTime = $math.div($actualdelay, 1000))
+## #set($actualDelayTime = $math.toInteger($actualDelayTime))
+#set($currentseconds = $math.mod($actualDelayTime, 60))
+#set($currentseconds = $math.toInteger($currentseconds))
+#set($currentminutes = $math.div($actualDelayTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentminutes = $math.mod($currentminutes, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#if($currentminutes < 10)
+#set($minutes = "0$currentminutes")
+#else
+#set($minutes = "$currentminutes")
+#end
+#if($currentseconds < 10)
+#set($seconds = "0$currentseconds")
+#else
+#set($seconds = "$currentseconds")
+#end
+"delaytimeinhr":"$minutes:$seconds",
+#set($downtimenoplan = 0)
+#set($downtimenoplan = $math.sub(3600000, $noplantime))
+#set($downtimenoplan = $math.sub($downtimenoplan, $actualdelay))
+#if($downtimenoplan < 0)
+"downtimeinhr" : "00:00",
+#else
+#set($actualDownTime = $math.div($downtimenoplan, 1000))
+#set($actualDownTime = $math.toInteger($actualDownTime))
+#set($currentseconds = $math.mod($actualDownTime, 60))
+#set($currentseconds = $math.toInteger($currentseconds))
+#set($currentminutes = $math.div($actualDownTime, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#set($currentminutes = $math.mod($currentminutes, 60))
+#set($currentminutes = $math.toInteger($currentminutes))
+#if($currentminutes < 10)
+#set($minutes = "0$currentminutes")
+#else
+#set($minutes = "$currentminutes")
+#end
+#if($currentseconds < 10)
+#set($seconds = "0$currentseconds")
+#else
+#set($seconds = "$currentseconds")
+#end
+"downtimeinhr":"$minutes:$seconds",
+#end
+#set($number = $number + 1)
+#if($flag == 0)
+"hour" : $record.get("_id").actualhour,
+#set($flag = 1)
+#end
+"hourforoas" : $record.get("_id").actualhour,
+"number" : $number,
+"machinename" : $noplanrec.get("_id").machinename,
+"noplanshots" : $noplanshots,
+"part" : "No Plan",
+"workingtime" : "00:00",
+"purgetime" : "00:00"
+#set($count = $count + 1)
+}
+#end
+#end
+#if($noplanrunmc == 0)
+#if($count > 0)
+,
+#end
+{
+#if($flag == 0)
+"hour" : $record.get("_id").actualhour,
+#set($flag = 1)
+#end
+"hourforoas" : $record.get("_id").actualhour,
+#set($number = $number + 1)
+"number" : $number,
+"downtimeinhr" : "60:00",
+"machinename" : $macrec.get("_id").machinename,
+"part" : "No Production"
+#set($count = $count + 1)
+}
+#end
+#end
+#end
+#end
+],
+"records" : $count
+}

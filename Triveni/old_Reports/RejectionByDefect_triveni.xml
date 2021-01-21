@@ -1,0 +1,41 @@
+<mon:Mongobot Name="rejectionbydefect" xmlns:mon="http://mongobot.entrib.com" Database="emgda" Host="localhost" Port="27017">
+<DataObject Name="rejection" Collection="rejection">
+<Aggregate>
+<Pipeline>
+<Match Condition='customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; 
+				    (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; 
+				    createdTimestamp &lt;= timestamp(&#39;enddate&#39;)) &amp;&amp; 
+				    defect in defval'/>
+</Pipeline>
+<Pipeline>
+<Group>
+<Key Name="machinename" Field="machinename"/>
+<Key Name="wastagereason" Field="wastagereason"/>
+<Key Name="defect" Field="defect"/>
+<Key Name="defectcode" Field="defectcode"/>
+<Key Name="shift" Field="shift"/>
+<Key Name="remark" Field="remark"/>
+<GroupField Name="totalrejection" Field="rejectionquantity" GroupFunction="Sum"/>
+</Group>
+</Pipeline>
+<Pipeline>
+<Sort>
+<SortField Name="machinename" SortDirection="Asc" SortGroupById="true"/>
+<SortField Name="totalrejection" SortDirection="Desc" SortGroupById="false"/>
+</Sort>
+</Pipeline>
+</Aggregate>
+</DataObject> >
+<DataObject Name="machine" Collection="provisioning">
+<Aggregate>
+<Pipeline>
+<Match Condition='customerId == customerid &amp;&amp; elementName == &quot;machine&quot;'/>
+</Pipeline>
+<Pipeline>
+<Sort>
+<SortField Name="machinename" SortDirection="Asc" SortGroupById="false"/>
+</Sort>
+</Pipeline>
+</Aggregate>
+</DataObject>
+</mon:Mongobot>

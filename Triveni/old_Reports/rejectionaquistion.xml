@@ -1,0 +1,175 @@
+<mon:Mongobot Name="productionreportmachine1shift1"
+    xmlns:mon="http://mongobot.entrib.com" Database="emgda" Host="localhost" Port="27017">
+    <DataObject Name="cycletime" Collection="cycletime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;cycletime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp('startdate') &amp;&amp; createdTimestamp &lt;= timestamp('enddate')) &amp;&amp; machinename == machineval &amp;&amp; noplan == false  &amp;&amp; purged == false" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <Key Name="shift" Field="shift" />
+                    <Key Name="sitename" Field="siteName" />
+                    <GroupField Name="totalquantity" Field="quantity" GroupFunction="Sum" />
+                    <GroupField Name="injectionstarttime" Field="injectionstarttime" GroupFunction="First" />
+                    <GroupField Name="injectionendtime" Field="injectionendtime" GroupFunction="Last" />
+                    <GroupField Name="lasthour" Field="shifthour" GroupFunction="Last" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="shift" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="rejection" Collection="rejection">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; machinename == machineval &amp;&amp; productiondate == rejectiondate &amp;&amp; type == &quot;Rejection&quot; || type == &quot;shift&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="objectid" Field="_id" />
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <Key Name="wastagereason" Field="wastagereason" />
+                    <Key Name="wastagecode" Field="wastagecode" />
+                    <Key Name="defect" Field="defect" />
+                    <Key Name="defectcode" Field="defectcode" />
+                    <Key Name="weight" Field="weight" />
+                    <Key Name="remark" Field="remark" />
+                    <Key Name="shift" Field="shift" />
+                    <Key Name="sitename" Field="siteName" />
+                    <GroupField Name="totalquantity" Field="rejectionquantity" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="hour" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="rework" Collection="rejection">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; machinename == machineval &amp;&amp; productiondate == rejectiondate &amp;&amp; type == &quot;Rework&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="objectid" Field="_id" />
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <Key Name="rework" Field="rework" />
+                    <Key Name="reworkcode" Field="reworkcode" />
+                    <Key Name="reworksubcategory" Field="reworksubcategory" />
+                    <Key Name="reworksubcategorycode" Field="reworksubcategorycode" />
+                    <Key Name="weight" Field="weight" />
+                    <Key Name="remark" Field="remark" />
+                    <Key Name="shift" Field="shift" />
+                    <Key Name="sitename" Field="siteName" />
+                    <GroupField Name="totalreworkquantity" Field="reworkquantity" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="hour" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="lump" Collection="rejection">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; machinename == machineval &amp;&amp; productiondate == rejectiondate &amp;&amp; type == &quot;Lump&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="objectid" Field="_id" />
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <Key Name="weight" Field="weight" />
+                    <Key Name="remark" Field="remark" />
+                    <Key Name="lumpreason" Field="lumpreason" />
+                    <Key Name="shift" Field="shift" />
+                    <Key Name="sitename" Field="siteName" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="hour" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="hold" Collection="rejection">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; machinename == machineval &amp;&amp; productiondate == rejectiondate &amp;&amp; type == &quot;Hold&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="objectid" Field="_id" />
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <Key Name="weight" Field="weight" />
+                    <Key Name="remark" Field="remark" />
+                    <Key Name="holdreason" Field="holdreason" />
+                    <Key Name="shift" Field="shift" />
+                    <Key Name="sitename" Field="siteName" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="hour" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="shift" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;shift&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="shift" Field="shiftdescription" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="shift" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="hour" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;hour&quot;" />
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="planning" Collection="embedded">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;planning&quot; &amp;&amp; machinename == machineval &amp;&amp; planstatus != &quot;Not Started&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="grossweight" Field="weight" />
+                    <Key Name="planid" Field="planid" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+</mon:Mongobot>

@@ -1,0 +1,45 @@
+{
+"name": "Machine Dashboard Production Planwise",
+"cols": [ { "name": "machinename", "type": "String", "description": "Machine", "width": "20%" },
+{ "name": "partname", "type": "String", "description": "Part", "width": "10%" },
+{ "name": "planid", "type": "String", "description": "Plan ID", "width": "48%" },
+{ "name": "actual", "type": "String", "description": "Actual", "width": "13%" }
+],
+#set($count = 0)
+"reportData":
+[
+#set($planwisecycle = $resultmap.cycletime)
+#set($rejection = $resultmap.rejection)
+#foreach($val in $planwisecycle)
+#if($count > 0)
+,
+#end
+{
+"machinename":$val.get("_id").machinename,
+#if($val.get("_id").partname)
+"partname":$val.get("_id").partname,
+#else
+"partname":"-",
+#end
+#if($val.get("_id").productionplanid)
+"planid": $val.get("_id").productionplanid,
+#else
+"planid":"-",
+#end
+
+#set($rejectionqty = 0)
+#foreach($rejrec in $rejection)
+    #if($val.get("_id").productionplanid == $rejrec.get("_id").productionplanid && $val.get("_id").machinename == $rejrec.get("_id").machinename && $val.get("_id").partname == $rejrec.get("_id").partname)
+        #set($rejectionqty = $rejrec.get("rejectionquantity"))
+    #end
+#end
+#set($actualqty = 0)
+#set($actualqty = $val.get("count"))
+#set($actualqty = $math.sub($actualqty, $rejectionqty))
+"actual": $actualqty
+}
+#set($count = $count + 1)
+#end
+],
+"records": $count
+}

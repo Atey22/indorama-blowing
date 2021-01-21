@@ -1,0 +1,157 @@
+{#*
+*#"name":"ViewPlanReport",#*
+*#"params":[{"marginleft":"0.5in","marginright":"0.5in"}],#*
+*#"cols":[#*
+		*#{"name":"number","type":"number","description":"Sr.No"},#*
+		*#{"name":"machine","type":"String","description":"MachineName"},#*
+		*#{"name":"lotnumber","type":"String","description":"LotNumber"},#*
+		*#{"name":"planid","type":"String","description":"PlanId"},#*
+		*#{"name":"planstarttime","type":"String","description":"PlanStartTime"},#*
+		*#{"name":"planendtime","type":"long","description":"PlanEndTime"},#*
+		*#{"name":"targetquantity","type":"long","description":"PlannedQty(inKgs)"},#*
+		*#{"name":"produced","type":"long","description":"ActualQty(inPcs)"},#*
+		*#{"name":"producedinmt","type":"long","description":"ActualQty(inMT)"},		#*
+		*#{"name":"planstatus","type":"String","description":"PlanStaus(InProgress,NotStarted,Abort,Complete)"},#*
+		*#{"name":"abortreason","type":"String","description":"PlanAbortReason"}#*
+	*#],#*
+*##set($count=0)#*
+*##set($number=0)#*
+*##set($targetquantity=0)#*
+*##set($actualqty=0)#*
+*#"reportData":[#*
+	*##set($rejection=$resultmap.rejection)#*
+	*##set($planning=$resultmap.planning)#*
+	*##set($planning2=$resultmap.planning2)#*
+	*##set($machine=$resultmap.machinename)#*
+	*##set($cycletime=$resultmap.cycletime)#*
+	*##foreach($record in $machine)#*
+		*##foreach($planrec in $planning)#*
+			*##if($record.get("_id").machinename==$planrec.get("_id").machinename)#*
+				*##set($machinename=$planrec.get("_id").machinename)#*
+				*##set($targetquantity=$planrec.get("_id").targetquantity)#*
+				*##set($planid=$planrec.get("_id").planid)#*
+				*##set($partname=$planrec.get("_id").partname)#*
+				*##set($opthick=0)#*
+				*##set($opwidth=0)#*
+				*##set($oplength=0)#*
+				*##set($staticvalue=0.00000785)#*
+				*##set($thousand=1000)#*
+				*##set($ipthick=$planrec.get("_id").ipthick)#*
+				*##set($opthick=$planrec.get("_id").opthick)#*
+				*##set($ipwidth=$planrec.get("_id").ipwidth)#*
+				*##set($opwidth=$planrec.get("_id").opwidth)#*
+				*##set($oplength=$planrec.get("_id").oplength)#*
+				*##set($prdqtyinmt=0)#*
+				*##set($actualqty=0)#*
+				*##foreach($rec in $cycletime)#*
+					*##if($machinename==$rec.get("_id").machinename && $rec.get("_id").productionplanid==$planid && $rec.get("_id").partname==$partname)#*
+						*##set($rejqty = 0)#*
+						*##foreach($rj in $rejection)#*
+							*##if($machinename==$rj.get("_id").machinename && $rj.get("_id").productionplanid==$planid && $rj.get("_id").partname==$partname)#*
+								*##set($rejqty = $rj.get("rejectionqty"))#*
+							*##end#*
+						*##end#*
+						*##set($actualqty=$rec.get("totalquantity"))#*
+						*##set($acceptedqty=$math.sub($actualqty,$rejqty))#*
+						*##if($machinename=='"SLITTED_2"')#*
+							*##set($singlepartweigth=$math.mul($math.mul($ipthick,$ipwidth),$thousand))#*
+						*##else#*
+							*##set($singlepartweigth=$math.mul($math.mul($opthick,$opwidth),$oplength))#*
+						*##end#*
+						*##*
+						*##*
+						*##set($singlepartweigth=$math.mul($singlepartweigth,$staticvalue))#*
+						*##set($singlepartweigth=$math.div($singlepartweigth,$thousand))#*
+						*##set($prdqtyinmt=$math.roundTo(3,$math.mul($singlepartweigth,$actualqty)))#*
+						*##if($count>0)#*
+							*#,#*
+						*##end#*
+						*#{#*
+							*##set($number=$number+1)#*
+							*#"number":$number,#*
+							*#"machine":$machinename,#*
+							*##if(!$rec.get("_id").partname)#*
+								*#"part":"-",#*
+							*##else#*
+								*#"part":$rec.get("_id").partname,#*
+							*##end#*
+							*##if(!$planrec.get("_id").planid)#*
+								*#"planid":"-",#*
+							*##else#*
+								*#"planid":$planrec.get("_id").planid,#*
+							*##end#*
+							*##if(!$planrec.get("_id").lotnumber)#*
+								*#"lotnumber":"-",#*
+							*##else#*
+								*#"lotnumber":$planrec.get("_id").lotnumber,#*
+							*##end#*
+							*##if(!$planrec.get("_id").planstarttime)#*
+								*#"planstarttime":"-",#*
+							*##else#*
+								*#"planstarttime":$planrec.get("_id").planstarttime,#*
+							*##end#*
+							*##if(!$planrec.get("_id").planendtime)#*
+								*#"planendtime":"-",#*
+							*##else#*
+								*#"planendtime":$planrec.get("_id").planendtime,#*
+							*##end#*
+							*##if(!$planrec.get("_id").planstatus)#*
+								*#"planstatus":"-",#*
+							*##else#*
+								*#"planstatus":$planrec.get("_id").planstatus,#*
+							*##end#*
+							*##if(!$planrec.get("_id").abortreason)#*
+									*#"abortreason":"-",#*
+							*##else#*
+								*#"abortreason":$planrec.get("_id").abortreason,#*
+							*##end#*
+							*#"produced":$actualqty,#*
+							*#"producedinmt":$prdqtyinmt,#*
+							*#"targetquantity":$targetquantity#*
+						*#}#*
+						*##set($count=$count+1)#*
+					*##end#*
+				*##end#*
+			*##end#*
+		*##end#*
+		*##foreach($plan2rec in $planning2)#*
+			*##if($record.get("_id").machinename==$plan2rec.get("_id").machinename)#*
+				*##if($count>0)#*
+					*#,#*
+				*##end#*
+				*#{#*
+					*##set($number=$number+1)#*
+					*#"number":$number,#*
+					*#"machine":$plan2rec.get("_id").machinename,#*
+					*##if(!$plan2rec.get("_id").partname)#*
+						*#"part":"-",#*
+					*##else#*
+						*#"part":$plan2rec.get("_id").partname,#*
+					*##end#*
+					*##if(!$plan2rec.get("_id").planid)#*
+						*#"planid":"-",#*
+					*##else#*
+						*#"planid":$plan2rec.get("_id").planid,#*
+					*##end#*
+					*##if(!$plan2rec.get("_id").lotnumber)#*
+						*#"lotnumber":"-",#*
+					*##else#*
+						*#"lotnumber":$plan2rec.get("_id").lotnumber,#*
+					*##end#*
+					*#"planstarttime":"-",#*
+					*#"planendtime":"-",#*
+					*##if(!$plan2rec.get("_id").planstatus)#*
+						*#"planstatus":"-",#*
+					*##else#*
+						*#"planstatus":$plan2rec.get("_id").planstatus,#*
+					*##end#*
+					*#"produced":"0",#*
+					*#"targetquantity":$plan2rec.get("_id").targetquantity#*
+				*#}#*
+				*##set($count=$count+1)#*
+			*##end#*
+		*##end#*
+	*##end#*
+	*#],#*
+	*#"records":$count#*
+*#}

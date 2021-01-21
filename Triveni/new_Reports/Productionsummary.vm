@@ -1,0 +1,148 @@
+{
+	"name" : "Production Summary",
+	"cols" : [
+		{"name" : "number", "type" : "number", "description" : "Sr. No"},
+		{"name" : "machine", "type" : "String", "description" : "Machine Name"},
+		{"name" : "shift", "type" : "String", "description" : "Shift Name"},
+		{"name" : "plannedqty", "type" : "String", "description" : "Planned Qty (in MT)"},
+		{"name" : "acceptedqty", "type" : "String", "description" : "Achieve Qty (in MT)"},
+		{"name" : "downtime", "type" : "String", "description" : "Remark"}	],
+		#set($count = 0)
+		#set($number = 0)
+	"reportData" : [
+		#set($machineList = $resultmap.machine)
+		#set($shift = $resultmap.shift)
+		#set($planning = $resultmap.planning)
+		#set($planningnotstarted = $resultmap.planningnotstarted)
+		#set($productionbasereport=$resultmap.productionbasereport)
+		#set($downtimebasereport=$resultmap.downtimebasereport)
+		#set($rejejction=$resultmap.rejection)
+		#set($downtimereason=$resultmap.downtimereason)
+		#set($breaktime=$resultmap.breaktime)
+		#foreach($machine in $machineList)
+            #set($machinen = '"-"')
+            #set($machinen = $machine.get("_id").machinename)
+			#set($totalproducedqty = 0)
+			#set($machinfound=0)
+			#foreach($sl in $shift)
+				#set($planfound=0)
+				#set($plannedqty = 0)
+				#set($producedqty = 0)
+				#set($dtreason = '""')
+				#set($shiftn = '"-"')
+				#set($shiftn = $sl.get("_id").shiftname)
+				#foreach($rec in $productionbasereport)
+					#if($machinen == $rec.get("_id").machinename && $shiftn == $rec.get("_id").shift)
+						#set($prodqty = 0)
+						#set($plfound = 0)
+						#set($plqty = 0)
+						#set($plqtynotstarted = 0)
+						#set($prdqty = 0)
+						#set($opthick = 0)
+						#set($opwidth = 0)
+						#set($oplength = 0)
+						#set($ipwidth = 0)
+						#set($ipthick = 0)
+						#set($rejqty = 0)
+						#set($dtcount = 0)
+						#set($dtreason = '""')
+						#set($topfive = 0)
+						#set($staticvalue = 0.00000785)
+						#set($thousand = 1000)
+						#set($machinename = $rec.get("_id").machinename)
+						#set($shiftname = $rec.get("_id").shift)
+						#set($planid = $rec.get("_id").planid)					 
+						#set($prodqty = $rec.get("prodqty"))
+						#foreach($r in $rejection)
+							#if($machinename == $r.get("_id").machinename && $shiftname == $r.get("_id").shift && $planid == $r.get("_id").planid)
+								#set($rejqty = $r.get("rejqty"))
+							#end
+						#end
+						#set($acceptedqty = $prodqty)
+						#foreach($r in $planning)
+							#if($machinename == $r.get("_id").machinename && $planid == $r.get("_id").planid)
+								#set($opthick = $math.add($opthick,$r.get("_id").opthick))
+								#set($opwidth = $r.get("_id").opwidth)
+								#set($oplength = $r.get("_id").oplength)
+								#set($ipwidth = $r.get("_id").ipwidth)
+								#set($ipthick = $r.get("_id").ipthick)
+								#set($plqty = $math.div($r.get("_id").targetquantity,$thousand))
+								#set($plfound=1)
+							#end
+						#end
+						#if($plfound == 1)
+							#if($machinename == '"SLITTED_2"')
+								#set($prdqty = $math.mul($ipthick,$ipwidth))
+								#set($prdqty = $math.mul($prdqty,$staticvalue))
+								#set($acceptedqty = $math.mul($acceptedqty,1000))
+								#set($prdqty = $math.mul($prdqty,$acceptedqty))
+								#set($prdqty = $math.div($prdqty,$thousand))
+							#else
+								#set($prdqty = $math.mul($opthick,$opwidth))
+								#set($prdqty = $math.mul($prdqty,$oplength))
+								#set($prdqty = $math.mul($prdqty,$staticvalue))
+								#set($prdqty = $math.mul($prdqty,$acceptedqty))
+								#set($prdqty = $math.div($prdqty,$thousand))
+							#end
+							#set($planfound=1)
+							
+						#end
+						
+						
+						#set($plannedqty = $math.roundTo(3, $math.add($plannedqty, $plqty)))
+						#set($producedqty = $math.add($producedqty, $prdqty))
+						#set($producedqty = $math.roundTo(2,$producedqty))
+						#set($totalproducedqty = $math.roundTo(2,$math.add($totalproducedqty,$producedqty)))
+						#foreach($dt in $downtimebasereport)
+							#if($machinename == $dt.get("_id").machinename && $shiftname == $dt.get("_id").shift && $planid == $dt.get("_id").planid)
+								#foreach($dtr in $downtimereason)
+									#if($dtr.get("_id").downtimereason != $dt.get("_id").downtimereason)
+										#foreach($dtr in $breaktime)
+											#if($dtr.get("_id").breakreason != $dt.get("_id").downtimereason)
+												#if($dtcount < $topfive)
+													#set($dtreason = $dtreason + "|")
+													#set($dtreason = $dtreason + $dt.get("_id").downtimereason)
+													#set($dtcount = $dtcount + 1)
+												#end
+											#end
+										#end
+									#end
+								#end
+							#end
+						#end
+					#end
+				#end
+				#if($planfound == 1)
+					#if($count>0)
+						,
+					#end
+					{
+						#set($number=$number+1)
+						"machine" : $machinen,
+						"shift" : $shiftn,
+						"plannedqty" : $plannedqty,
+						"acceptedqty" : $producedqty,
+						#if($dtreason == "")
+							"downtime" : "-",
+						#else
+							"downtime" : $dtreason,
+						#end
+						"number" : $number
+						#set($count=$count+1)
+						#set($machinfound=1)
+					}
+				#end
+			#end
+			#if($machinfound == 1)
+				#if($count>0)
+                        ,
+				#end
+                {
+                    "machine" : "Total",
+                    "acceptedqty" : $totalproducedqty
+                }
+			#end
+        #end	
+		],
+	"records" : $count
+}

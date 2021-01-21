@@ -1,0 +1,124 @@
+{
+"name":"Rejection - by Machine",  
+"params":[{"marginleft" : "0.5in","marginright" : "0.5in"}],  
+"cols":[ 
+        {"name" : "postingdate", "type" : "string", "description" : "Posting Date"},     
+	    {"name" : "number", "type" : "number", "description" : "Sr. No"},        
+	    {"name" : "machinename", "type" : "string", "description" : "Machine"},     
+	    {"name" : "planid", "type" : "string", "description" : "Plan ID"},      
+        {"name" : "partname", "type" : "string", "description" : "Lot Number"},      
+	    {"name" : "defect", "type" : "string", "description" : "Defect"},     
+	    {"name" : "defectcode", "type" : "string", "description" : "Defect Code"},    
+        ##{"name" : "wastagereason", "type" : "string", "description" : "Wastage Reason"},
+        {"name" : "rejectedquantity", "type" : "double", "description" : "Rejected(in Pcs)"},
+        {"name":"rejectedquantityinmt","type":"long","description":"Rejected(in MT)"},  		
+        {"name" : "remark", "type" : "string", "description" : "Remark"}    
+    ],     
+#set($count = 0)    
+#set($number = 0)          
+"reportData" : [            
+    #set($machine = $resultmap.machine)     
+    #set($rejection = $resultmap.rejection) 
+    #set($planning = $resultmap.planning)
+    #set($rejectedquantityinmt = 0)
+    #set($ipwidth = 0)
+    #set($ipthick = 0)
+    #set($opthick = 0)
+    #set($opwidth = 0)
+    #set($oplength = 0)
+	#set($rejvalue = 0)
+    #foreach($mac in $machine) 
+        #foreach($r in $rejection) 
+             #if($mac.get("_id").machinename == $r.get("_id").machinename) 
+             #set($rejvalue = $math.round($r.get("rejectedquantity")))    
+                #if($rejvalue !=0 )
+                    
+                    #foreach($plan in $planning) 
+                        #set($ipwidth = $plan.get("_id").ipwidth) 
+                        #set($ipthick = $plan.get("_id").ipthick)
+                        #set($opthick = $plan.get("_id").opthick)
+                        #set($opwidth = $plan.get("_id").opwidth)
+                        #set($oplength = $plan.get("_id").oplength)        
+                        #if($plan.get("_id").machinename == $r.get("_id").machinename && $plan.get("_id").planid == $r.get("_id").planid)
+                             #if($mac.get("_id").machinename == '"SLITTED_2"')
+                                #set($rejectedquantityinmt = $math.mul($math.mul($math.mul($ipthick,$ipwidth),$rejvalue),0.00000785))
+                                #set($rejectedquantityinmt = $math.div($rejectedquantityinmt,1000))
+								#set($rejectedquantityinmt = $math.mul($rejectedquantityinmt,1000))
+                                #set($rejectedquantityinmt = $math.roundTo(6,$rejectedquantityinmt))
+                            #else
+                                #set($rejectedquantityinmt = $math.mul($math.mul($math.mul($oplength,$opthick),$opwidth),0.00000785))
+				#set($rejectedquantityinmt = $math.mul($rejectedquantityinmt,$rejvalue))
+                                #set($rejectedquantityinmt = $math.div($rejectedquantityinmt,1000))
+                                #set($rejectedquantityinmt = $math.roundTo(6,$rejectedquantityinmt))
+	
+                            #end
+                        #end
+                    #end    
+                        #if($count > 0)            
+                            ,          
+                        #end         
+                        #set($count = $count + 1)                      
+                            {            
+                                "number" : $count,
+                                "rejectedquantityinmt" : $rejectedquantityinmt,
+                                
+                                #if(!$r.get("_id").shiftdate)                     
+                                "postingdate" : "-",                   
+                                #else                     
+                                    "postingdate" : $r.get("_id").shiftdate,                  
+                                #end           
+                                    "machinename" : $mac.get("_id").machinename,         
+                                #if(!$mac.get("_id").machineid)            
+                                    "machineid" : "-",          
+                                #else           
+                                    "machineid" :$mac.get("_id").machineid,         
+                                #end          
+                                #if(!$mac.get("_id").cell)          
+                                "cell" : "-",          
+                                #else           
+                                    "cell" :$mac.get("_id").cell,          
+                                #end           
+                                #if(!$r.get("_id").planid)            
+                                    "planid" : "-",           
+                                #else           
+                                "planid" :$r.get("_id").planid,           
+                                #end          
+                                #if(!$r.get("_id").partname)           
+                                    "partname" : "-",          
+                                #else            
+                                "partname" :$r.get("_id").partname,           
+                                #end           
+                                #if(!$r.get("_id").partnumber)            
+                                    "partnumber" : "-",           
+                                #else           
+                                    "partnumber" :$r.get("_id").partnumber,           
+                                #end                      
+                                #if(!$r.get("_id").defect)           
+                                    "defect" : "-",          
+                                #else            
+                                    "defect" :$r.get("_id").defect,          
+                                #end                       
+                                #if(!$r.get("_id").remark)           
+                                    "remark" : "-",          
+                                #else           
+                                    "remark" :$r.get("_id").remark,          
+                                #end                       
+                                #if(!$r.get("_id").defectcode)            
+                                    "defectcode" : "-",           
+                                #else           
+                                "defectcode" :$r.get("_id").defectcode,          
+                                #end                      
+                                #if(!$r.get("_id").wastagereason)           
+                                    "wastagereason" : "-",           
+                                #else           
+                                    "wastagereason" :$r.get("_id").wastagereason,           
+                                #end            
+                                "rejectedquantity" : $math.round($r.get("rejectedquantity"))      
+                                }      
+                            #end         
+                        #end      
+                    #end      
+                #end     
+            ],  
+        "records" : $count 
+}        

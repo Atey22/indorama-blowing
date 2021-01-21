@@ -1,0 +1,161 @@
+{
+"name" : "OEE APP",
+#set($count = 0)
+#set($number = 0)
+"reportData" :
+#set($velocitycycletime = $velocityparameter.cycletime)
+#set($startdate = $velocitycycletime.get("startdate"))
+#set($enddate = $velocitycycletime.get("enddate"))
+#set($cycletime=$resultmap.cycletime)
+#set($planning=$resultmap.planning)
+#set($opdelaydowntime=$resultmap.opdelaydowntime)
+#set($production=$resultmap.production)
+#set($downtimecomplete=$resultmap.downtimecomplete)
+#set($downtimeinprogress=$resultmap.downtimeinprogress)
+#set($overallnetruntime = 0)
+#set($overallproduction = 0)
+#set($overallstdproduction = 0)
+#set($availabletimeeff = 0)
+#set($qualityeff = 0)
+#set($performanceeff = 0)
+#set($oee = 0)
+#set($skipDowntime = '"Breaktime"' || '"Idle shift"')
+#set($netruntime = 0)
+#set($cycletimeforplan = 0)
+#set($planlist = [])
+#foreach($rec in $cycletime)
+#if(!$planlist.contains($rec.get("_id").productionplanid))
+#set($cycletimeforplan = $rec.get("totalcycletime"))
+#set($netruntime = $math.add($netruntime, $cycletimeforplan))
+#set($pl = $planlist.add($rec.get("_id").productionplanid))
+#end
+#end
+#set($totalopdelay = 0)
+#foreach($opRec in $opdelaydowntime)
+#set($totalopdelay = $math.add($totalopdelay, $opRec.get("downtime")))
+#end
+#set($overallnetruntime = $math.add($netruntime, $totalopdelay))
+#set($totaltarget = 0)
+#set($totalproduced = 0)
+#foreach($prodRec in $production)
+#set($target = 0)
+#set($actual = 0)
+#set($runtime = 0)
+#set($totalcycletime = 0)
+#set($idealcycletime = 0)
+#set($cavities = 0)
+#foreach($plan in $planning)
+#if($plan.get("_id").planid == $prodRec.get("_id").productionplanid)
+#set($idealcycletime = $plan.get("_id").cycletime)
+#set($cavities = $plan.get("activecavity"))
+#set($totalcycletime = $prodRec.get("totalcycletime"))
+#set($opdelaytime = 0)
+#foreach($opDt in $opdelaydowntime)
+#if($opDt.get("_id").planid == $prodRec.get("_id").productionplanid)
+#set($opdelaytime = $opDt.get("downtime"))
+#end
+#end
+#set($runtime = $math.add($totalcycletime, $opdelaytime))
+#set($runtime = $math.div($runtime, 1000))
+#set($target = $math.div($runtime,$idealcycletime))
+#set($target = $math.mul($target,$cavities))
+#set($target = $math.floor($target))
+#set($actual = $prodRec.get("totalquantity"))
+#set($totaltarget = $math.add($totaltarget,$target))
+#set($totalproduced = $math.add($totalproduced,$actual))
+#end
+#end
+#end
+#set($totalrejection = 0)
+#foreach($rejRec in $rejection)
+#set($totalrejection = $math.add($totalrejection, $rejRec.get("rejectionquantity")))
+#end
+#set($totalaccepted = $math.sub($totalproduced,$totalrejection))
+#set($overallhoursutilised = 0)
+#set($totalCategoryDowntimeCompleted = 0)
+#foreach($dtRecComp in $downtimecomplete)
+#if($dtRecComp.get("_id").category != $skipDowntime)
+#set($categorydowntimecompleted = 0)
+#set($downtimestart = 0)
+#set($downtimeend = 0)
+#set($downtimestart = $dtRecComp.get("_id").downtimestart)
+#set($downtimeend = $dtRecComp.get("_id").downtimeend)
+#set($hourstart = $startdate)
+#set($hourend = $enddate)
+## Completed Downtime
+#if($downtimestart < $hourstart)
+#set($categorydowntimecompleted = $math.sub($downtimeend, $hourstart))
+#else
+#set($categorydowntimecompleted = $math.sub($downtimeend, $downtimestart))
+#end
+#if($categorydowntimecompleted < 0)
+#set($categorydowntimecompleted = 0)
+#end
+#set($totalCategoryDowntimeCompleted = $math.add($totalCategoryDowntimeCompleted, $categorydowntimecompleted))
+#end
+#end
+#set($overallhoursutilised = 0)
+#set($overallcategorydowntime = 0)
+#set($totalCategoryDowntimeInProgress = 0)
+#foreach($dtRecIp in $downtimeinprogress)
+#if($dtRecIp.get("_id").category != $skipDowntime)
+#set($categorydowntimeinprogress = 0)
+#set($downtimestart = 0)
+#set($downtimeend = 0)
+#set($downtimestart = $dtRecIp.get("_id").downtimestart)
+#set($hourstart = $startdate)
+#set($hourend = $enddate)
+#set($categorydowntimeinprogress = $math.sub($hourend, $downtimestart))
+#if($categorydowntimeinprogress < 0)
+#set($categorydowntimeinprogress = 0)
+#end
+#set($totalCategoryDowntimeInProgress = $math.add($totalCategoryDowntimeInProgress, $categorydowntimeinprogress))
+#end
+#end
+#set($overallcategorydowntime = $math.add($totalCategoryDowntimeCompleted, $totalCategoryDowntimeInProgress))
+#set($overallhoursutilised = $math.add($overallcategorydowntime, $overallnetruntime))
+#set($availabletimeeff = $math.div($overallnetruntime, $overallhoursutilised))
+#set($availabletimeeff = $math.mul($availabletimeeff, 100))
+#set($availabletimeeff = $math.roundTo(2, $availabletimeeff))
+#set($performanceeff = $math.div($totalproduced, $totaltarget))
+#set($performanceeff = $math.mul($performanceeff, 100))
+#set($performanceeff = $math.roundTo(2, $performanceeff))
+#set($qualityeff = $math.div($totalaccepted, $totalproduced))
+#set($qualityeff = $math.mul($qualityeff, 100))
+#set($qualityeff = $math.roundTo(2, $qualityeff))
+#if($qualityeff)
+#set($midoee = $math.mul($availabletimeeff, $performanceeff))
+#set($midoee = $math.mul($midoee, $qualityeff))
+#set($midoee = $math.div($midoee, 10000))
+#set($oee = $math.roundTo(2, $midoee))
+#end
+{
+"netruntime" : $overallnetruntime,
+"hoursutilized" : $overallhoursutilised,
+"downtime" : $overallcategorydowntime,
+"actualproduction" : $totalproduced,
+"standardproduction" : $totaltarget,
+"totalrejection" : $totalrejection,
+#if($availabletimeeff < 0)
+"availabletimeeff" : 0,
+#else
+"availabletimeeff" : $availabletimeeff,
+#end
+#if($performanceeff < 0)
+"performanceeff" : 0,
+#else
+"performanceeff" : $performanceeff,
+#end
+#if($qualityeff < 0)
+"qualityeff" : 0,
+#else
+"qualityeff":$qualityeff,
+#end
+#if($oee < 0)
+"oee" : 0
+#else
+"oee":$oee
+#end
+#set($count = $math.add($count,1))
+}
+}

@@ -1,0 +1,233 @@
+<mon:Mongobot Name="machinedashboardv2"
+    xmlns:mon="http://mongobot.entrib.com" Database="emgda" Host="localhost" Port="27017">
+    <DataObject Name="planning" Collection="embedded">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;planning&quot; &amp;&amp; planstatus == &quot;In Progress&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="partnumber" Field="partnumber" />
+                    <Key Name="mouldname" Field="mouldname" />
+                    <Key Name="mouldnumber" Field="mouldno" />
+                    <Key Name="lotnumber" Field="lotnumber" />
+                    <Key Name="oplength" Field="oplength" />
+                    <Key Name="oppcs" Field="oppcs" />
+                    <Key Name="customerreferenceno" Field="customerreferenceno" />
+                    <Key Name="opwidth" Field="opwidth" />
+                    <Key Name="opthickness" Field="opthickness" />
+                    <Key Name="cell" Field="cell" />
+                    <Key Name="mouldtype" Field="mouldtype" />
+                    <Key Name="grossweight" Field="grossweight" />
+                    <Key Name="workorder" Field="workorder" />
+                    <Key Name="familypartname" Field="familypartname" />
+                    <Key Name="productionplanstarttime" Field="planstarttime" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <Key Name="cycletime" Field="cycletime" />
+                    <Key Name="activecavity" Field="activecavity" />
+                    <Key Name="trial" Field="trial" />
+                    <GroupField Name="count" Field="targetquantity" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="rejection" Collection="rejection">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;))' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <GroupField Name="rejectionquantity" Field="rejectionquantity" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="purge" Collection="cycletime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;purge&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;))' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="purgeplanid" Field="planid" />
+                    <GroupField Name="purgeqty" Field="purgeqty" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="downtimewithoutoperatordelay" Collection="downtime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;downtime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;))' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="downtimestatus" Field="downtimestatus" />
+                    <Key Name="downtimestart" Field="downtimestart" />
+                    <Key Name="planid" Field="planid" />
+                    <GroupField Name="downtimeinms" Field="downtimeinms" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="noplan" Collection="noplan">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;noplanelement&quot; &amp;&amp; noplanstatus == &quot;In Progress&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="productionplanstarttime" Field="startdate" />
+                    <Key Name="noplanid" Field="noplanid" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="noplancycletime" Collection="cycletime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;cycletime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;)) &amp;&amp; noplan == true' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="noplanid" Field="planid" />
+                    <GroupField Name="count" Field="quantity" GroupFunction="Count" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="planningmachine" Collection="embedded">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;planning&quot; &amp;&amp; planstatus == &quot;In Progress&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <GroupField Name="mould" Field="mouldname" GroupFunction="First" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="nextplannedmachine" Collection="embedded">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;planning&quot; &amp;&amp; planstatus == &quot;Not Started&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="sortindex" SortDirection="Asc" SortGroupById="false" />
+                </Sort>
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="cell" Field="cell" />
+                    <Key Name="machinename" Field="machinename" />
+                    <GroupField Name="mould" Field="mouldname" GroupFunction="First" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="cycletime" Collection="cycletime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;cycletime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;)) &amp;&amp; noplan == false &amp;&amp; purged == false' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <GroupField Name="count" Field="quantity" GroupFunction="Sum" />
+                    <GroupField Name="firstcycle" Field="cyclestarttime" GroupFunction="Last" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="cycletimepurged" Collection="cycletime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;cycletime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;)) &amp;&amp; noplan == false &amp;&amp; purged == true' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <Key Name="partname" Field="partname" />
+                    <Key Name="productionplanid" Field="planid" />
+                    <GroupField Name="count" Field="quantity" GroupFunction="Count" />
+                    <GroupField Name="lastpurged" Field="cyclestarttime" GroupFunction="Last" />
+                    <GroupField Name="firstpurged" Field="cyclestarttime" GroupFunction="First" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="downtime" Collection="downtime">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;downtime&quot; &amp;&amp; (createdTimestamp &gt;= timestamp(&#39;startdate&#39;) &amp;&amp; createdTimestamp &lt;= timestamp(&#39;enddate&#39;))' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                    <GroupField Name="departmentid" Field="departmentid" GroupFunction="Last" />
+                    <GroupField Name="downtimereasoncode" Field="downtimereasoncode" GroupFunction="Last" />
+                    <GroupField Name="downtimestatus" Field="downtimestatus" GroupFunction="Last" />
+                    <GroupField Name="start" Field="createdTimestamp" GroupFunction="Last" />
+                    <GroupField Name="downtimestart" Field="actualdowntimestart" GroupFunction="Last" />
+                    <GroupField Name="downtimeid" Field="_id" GroupFunction="Last" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="mouldchange" Collection="mouldchange">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;mouldchange&quot; &amp;&amp; mouldchangestatus == &quot;In Progress&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="machine" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;machine&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="cell" Field="cell" />
+                    <Key Name="machineindex" Field="machineindex" />
+                    <Key Name="machinename" Field="machinename" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+    <DataObject Name="cells" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition='customerId == customerid &amp;&amp; elementName == &quot;cells&quot;' />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="cell" Field="cellname" />
+                    <Key Name="cellindex" Field="cellindex" />
+                    <Key Name="celldescription" Field="celldescription" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+</mon:Mongobot>

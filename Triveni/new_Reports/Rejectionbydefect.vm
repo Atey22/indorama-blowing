@@ -1,0 +1,85 @@
+{     "name" : "Rejection - by Defect",     
+
+"cols":[
+        {"name" : "number", "type" : "number", "description" : "Sr. No"},         
+        {"name" : "defect", "type" : "string", "description" : "Defect"},           
+        {"name" : "defectcode", "type" : "string", "description" : "Defect Code"},          
+        {"name" : "machinename", "type" : "string", "description" : "Machine"},           
+        ##{"name" : "wastagereason", "type" : "string", "description" : "Wastage Reason"},     
+        {"name" : "totalrejection", "type" : "long", "description" : "Rejection"},  
+        {"name":"rejectedquantityinmt","type":"long","description":"Rejected(in MT)"}, 
+        {"name" : "remark", "type" : "string", "description" : "Remark"}   
+    ],      
+#set($count = 0)      
+#set($number = 0)        
+"reportData" : [       
+    #set($rejection = $resultmap.rejection)       
+    #set($machine = $resultmap.machine) 
+    #set($planning = $resultmap.planning)
+    #set($rejectedquantityinmt = 0)
+    #set($ipwidth = 0)
+    #set($ipthick = 0)
+    #set($opthick = 0)
+    #set($opwidth = 0)
+    #set($oplength = 0)
+	#set($totalrejection = 0)
+    #foreach($r in $rejection)       
+        #foreach($rec in $machine)               
+            #if($rec.get("machinename") == $r.get("_id").machinename)  
+                #foreach($plan in $planning)   
+                    #set($ipwidth = $plan.get("_id").ipwidth) 
+                    #set($ipthick = $plan.get("_id").ipthick)
+                    #set($opthick = $plan.get("_id").opthick)
+                    #set($opwidth = $plan.get("_id").opwidth)
+                    #set($oplength = $plan.get("_id").oplength)   
+					#if($plan.get("_id").machinename == $r.get("_id").machinename && $plan.get("_id").planid == $r.get("_id").planid)
+                        #if($r.get("_id").machinename == '"SLITTED_2"')
+                            #set($rejectedquantityinmt = $math.mul($math.mul($math.mul($ipthick,$ipwidth),$r.get("totalrejection")),0.00000785))
+                            #set($rejectedquantityinmt = $math.div($rejectedquantityinmt,1000))
+							#set($rejectedquantityinmt = $math.mul($rejectedquantityinmt,1000))
+                            #set($rejectedquantityinmt = $math.roundTo(6,$rejectedquantityinmt))
+                        #else
+                            #set($rejectedquantityinmt = $math.mul($math.mul($math.mul($oplength,$opthick),$opwidth),0.00000785))
+							#set($rejectedquantityinmt = $math.mul($rejectedquantityinmt,$r.get("totalrejection")))
+                            #set($rejectedquantityinmt = $math.div($rejectedquantityinmt,1000))
+                            #set($rejectedquantityinmt = $math.roundTo(6,$rejectedquantityinmt))
+                        #end
+                    #end 
+                #end             
+                    #if($count > 0)        
+                        ,             
+                    #end             
+                        {             
+                            #set($number = $count + 1)             
+                            "number" : $number,  
+                            "rejectedquantityinmt" : $rejectedquantityinmt,       
+                            "machinename": $r.get("_id").machinename,                        
+                            #if(!$r.get("_id").wastagereason)                  
+                            "wastagereason" : "-",                
+                            #else                  
+                            "wastagereason" : $r.get("_id").wastagereason,                
+                            #end                            
+                            #if(!$r.get("_id").defectcode)                 
+                            "defectcode" : "-",               
+                            #else        
+                            "defectcode" : $r.get("_id").defectcode,               
+                            #end         
+                            #if(!$r.get("_id").remark)                 
+                            "remark" : "-",               
+                            #else        
+                            "remark" : $r.get("_id").remark,               
+                            #end                
+                            #if(!$r.get("_id").defect)                 
+                            "defect" : "-",               
+                            #else        
+                            "defect" : $r.get("_id").defect,               
+                            #end                      
+                            "totalrejection" : $math.round($r.get("totalrejection"))        
+                        }       
+                        #set($count = $count + 1)            
+            #end             
+        #end              
+    #end        
+    ],          
+    "records" : $count  
+}

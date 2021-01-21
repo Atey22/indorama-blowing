@@ -1,0 +1,995 @@
+{
+	"name":"Production Daily",
+	"params":[{"marginleft":"0.5in","marginright":"0.5in"}],
+	"cols":[{"name":"number","type":"number","description":"Sr. No"},
+			{"name":"machine","type":"String","description":"Machine"},
+			{"name":"part","type":"String","description":"Lot Number"},
+			{"name":"scheduletype","type":"String","description":"Schedule Type"},
+			{"name":"targetquantity","type":"double","description":"Target Qty"},
+			{"name":"produced","type":"double","description":"Produced Qty"},
+			{"name":"acceptedquantity","type":"double","description":"Accepted Qty"},
+			{"name":"rejectedquantity","type":"double","description":"Rejected Qty"},
+			{"name":"rejection","type":"number","description":"Rej %"},
+			{"name":"noplanshots","type":"double","description":"No Plan Shots"},
+			{"name":"workingtime","type":"String","description":"Working Time(d hh : mm: ss)"},
+			{"name":"noplantime","type":"String","description":"No Plan Time(d hh : mm: ss)"},
+			{"name":"delaytimeinhr","type":"String","description":"Delay Time (d hh : mm: ss)"},
+            {"name":"downtimeinhr","type":"String","description":"Down Time (d hh : mm : ss)"}
+			],
+	#set($count=0)
+	#set($number=0)
+	#set($velocitycycletime = $velocityparameter.cycletime)
+	#set($startdate = ($velocitycycletime.get("startdate")))
+	#set($enddate = ($velocitycycletime.get("enddate")))
+	#set($result = $math.sub($enddate, $startdate))
+	#set($days = $math.div($result, 86400000))
+	#set($currenttime =  $date.get('yyyy-MM-dd HH:mm:ss'))
+	#set($currenttime1 = "$currenttime")
+	#set($currenttimehours = $math.toInteger($currenttime1.substring(11,13)))
+	#set($currenttimemin = $math.toInteger($currenttime1.substring(14,16)))
+	"reportData" : 
+	[	
+		#set($planning=$resultmap.planning)
+		#set($cycletime=$resultmap.cycletime)
+		#set($cycletimepurging=$resultmap.cycletimepurging)
+		#set($cycletimefornoplan = $resultmap.cycletimefornoplan)
+		#set($trialcycletime = $resultmap.trialcycletime)
+		#set($downtime=$resultmap.downtime)
+		#set($downtimeinprogress = $resultmap.downtimeinprogress)
+		#set($shutdowntime=$resultmap.shutdowntime)
+		#set($delay=$resultmap.delay)
+		#set($rejection=$resultmap.rejection)
+		#set($rejectionformachine=$resultmap.rejectionformachine)
+		#set($machine = $resultmap.machine)
+		#set($holidays = $resultmap.holidays)
+		#set($breaktime = $resultmap.breaktime)
+		#set($machines=[])
+		#set($plans=[])
+		
+		
+		#set($roundoffval = $math.roundTo(2,$days))
+		#set($intvaldays = $math.floor($roundoffval))
+		#set($decimalval = $math.sub($roundoffval, $intvaldays))
+		#set($holidaydurationinhr = 0)
+		#set($totaldurationofholiday = 0)
+		#set($HolidayInterval = 0)
+		#set($Btdurationinholidays = 0)
+		#set($noofholidays = 0)
+		#set($holidayCompleteDuration = 0)
+		#set($BTinmillisecs = 0)
+		#foreach($recholiday in $holidays)
+			#set($totaldurationofholiday = $math.add($holidaydurationinhr, $recholiday.get("totalduration")))
+		#end
+		#set($noofholidays = $math.div($totaldurationofholiday, 24))
+		#set($holidayCompleteDuration = $math.mul($totaldurationofholiday, 3600000))
+		#set($totalbreaktimeinmin = 0)
+		#set($totaldaybreaktime = 0)
+		#foreach($b in $breaktime)
+			#set($totalbreaktimeinmin = $math.add($totalbreaktimeinmin, $b.get("duration")))
+		#end
+		#set($BTinmillisecs = $math.mul($totalbreaktimeinmin,60000))
+		#set($Btdurationinholidays = $math.mul($BTinmillisecs, $noofholidays ))
+		#set($HolidayInterval = $math.sub($holidayCompleteDuration, $Btdurationinholidays))
+		#set($completedaysbreaktime = $math.mul($totalbreaktimeinmin, $intvaldays))
+		#set($totalBreakTime = 0)
+		#if($decimalval != 0)
+			#foreach($b in $breaktime)			
+				#set($breakstarttime = $b.get("starttime"))
+				#set($breakstarttime = "$breakstarttime")
+				#set($breakendtime = $b.get("endtime"))
+				#set($breakendtime = "$breakendtime")
+				#set($flag = $b.get("nextdayspillover"))
+				#set($breakstarthour = $math.toInteger($breakstarttime.substring(1,3)))
+				#set($breakendhour = $math.toInteger($breakendtime.substring(1,3)))
+				#set($breakendmin = $math.toInteger($breakendtime.substring(4,6)))
+				
+				#if($breakstarthour <= $currenttimehours) 
+					#if(($breakstarthour == $currenttimehours)&&($breakendmin > $currenttimemin))
+					#else
+						#if(($currenttimehours >= $breakendhour)  && ($flag == false))
+							#set($totalBreakTime = $math.add($totalBreakTime,$b.get("duration")))
+						#end
+					#end
+				#end		
+			#end
+		#end
+		#set($totaldaybreaktime = $math.add($completedaysbreaktime, $totalBreakTime))
+		#set($totaldaybreaktime = $math.mul($totaldaybreaktime, 60000)) 
+		#set($availabletime = $math.sub($enddate, $startdate))
+		#set($availabletime = $math.sub($availabletime, $totaldaybreaktime))
+		#set($availabletime = $math.sub($availabletime, $HolidayInterval))
+		#set($machinefound = 0)
+			#foreach($m in $machine)
+			#set($availabletimeformachine = 0)
+			#set($machinefound = 0)
+				#foreach($planrec in $planning)
+					#set($planfound=0)
+					#foreach($plan in $plans)
+						#if($plan==$planrec.get("_id").planid)
+							#set($planfound=1)
+							#break
+						#end
+					#end
+					#if($planfound == 0)
+					#set($planidfound = 0)
+						#foreach($rec in $cycletime)
+							#if($planrec.get("_id").planid == $rec.get("_id").productionplanid && $m.get("_id").machinename == $rec.get("_id").machinename)
+								#set($p=$plans.add($planrec.get("_id").planid))
+								#set($planidfound = 1)
+								#set($machinefound = 1)
+								#if($number>0)
+								,
+								#end
+								{
+									#set($found=0)
+									#foreach($mac in $machines)
+										#if($mac==$rec.get("_id").machinename)
+											#set($found=1)
+											#break
+										#end
+									#end
+									#set($f=$machines.add($rec.get("_id").machinename))
+									#set($number=$number+1)
+									"number":$number,
+									#set($machinename=$rec.get("_id").machinename)
+									"machine":$machinename,
+									#if(!$rec.get("_id").partname)
+										"part":"-",
+									#else
+										"part":$rec.get("_id").partname,
+									#end
+									#if(!$planrec.get("_id").scheduletype)
+										"scheduletype":"-",
+									#else
+										"scheduletype":$planrec.get("_id").scheduletype,
+									#end
+									#if(!$rec.get("_id").partcode)
+										"partcode":"-",
+									#else
+										"partcode":$rec.get("_id").partcode,
+									#end
+									#if(!$rec.get("_id").colour)
+										"colour":"-",
+									#else
+										"colour":$rec.get("_id").colour,
+									#end
+									#set($cavity=0)
+									#set($activecavity=0)
+									#set($targetquantity=0)
+									#foreach($r in $planning)
+										#if($rec.get("_id").productionplanid==$r.get("_id").planid && $rec.get("_id").partname == $r.get("_id").partname)
+											#set($cavity=$r.get("_id").cavity)
+											#set($activecavity=$r.get("_id").activecavity)
+											#set($targetquantity=$r.get("_id").targetquantity)
+											#break
+										#end
+									#end
+									
+									#set($actualdowntime=0)
+									#foreach($r in $downtime)
+										#if($rec.get("_id").machinename==$r.get("_id").machinename)
+											#set($actualdowntime=$r.get("downtime"))
+										#end
+									#end
+									
+									#set($durationdtinprog = 0)
+									#foreach($rec in $downtimeinprogress)
+										#if(($machinename == $rec.get("_id").machinename))
+											#set($dtstart = $rec.get("_id").downtimestart)
+											#set($durationdtinprog = $math.sub($enddate, $dtstart))
+											#set($durationdtinprog = $math.round($durationdtinprog))
+											#break
+										#end
+									#end
+									
+									#set($actualdowntime = $math.add($actualdowntime,$durationdtinprog))
+									#set($actualdowntime = $math.sub($actualdowntime,$totaldaybreaktime))
+									#set($actualdowntime = $math.sub($actualdowntime,$HolidayInterval))
+									#if($actualdowntime <= 0)
+											#set($actualdowntime = 0)
+										#else
+											#set($actualdowntime = $actualdowntime)
+									#end
+									#set($hours = 0)
+									#set($minutes = 0)
+									#set($seconds = 0)
+									#set($currentday = 0)
+									#set($actualtime=0)
+									#set($actualtime=$math.div($rec.get("totalcycletime"), 1000))
+									#set($actualtime=$math.toInteger($actualtime))
+									#set($currentminutes = $math.div($actualtime, 60))
+									#set($currenthours = $math.div($currentminutes, 60))
+									#set($currentday=$math.div($currenthours,24))
+									#set($currentday=$math.toInteger($currentday))
+									#set($currentminutes = $math.mod($currentminutes, 60))
+									#set($currenthours = $math.mod($currenthours, 24))
+									#set($currenthours = $math.toInteger($currenthours))
+									#set($currentminutes = $math.toInteger($currentminutes))
+									#set($currentseconds = $math.mod($actualtime, 60))
+                                    "totaldowntime" : $actualdowntime,
+									#if($currenthours < 10)
+										#set($hours = "0$currenthours")
+									#else
+										#set($hours = "$currenthours")
+									#end
+									#if($currentminutes < 10)
+										#set($minutes = "0$currentminutes")
+									#else
+										#set($minutes = "$currentminutes")
+									#end
+									#if($currentseconds < 10)
+										#set($seconds = "0$currentseconds")
+									#else
+										#set($seconds = "$currentseconds")
+									#end
+									"workingtime":"$currentday d $hours:$minutes:$seconds",
+									#set($hours = 0)
+									#set($minutes = 0)
+									#set($seconds = 0)
+									#set($currentday = 0)
+									#set($actualtime=$math.div($actualdowntime, 1000))
+									#set($actualtime=$math.toInteger($actualtime))
+									#set($currentminutes = $math.div($actualtime, 60))
+									#set($currenthours = $math.div($currentminutes, 60))
+									#set($currentday=$math.div($currenthours,24))
+									#set($currentday=$math.toInteger($currentday))
+									#set($currentminutes = $math.mod($currentminutes, 60))
+									#set($currenthours = $math.mod($currenthours, 24))
+									#set($currenthours = $math.toInteger($currenthours))
+									#set($currentminutes = $math.toInteger($currentminutes))
+									#set($currentseconds = $math.mod($actualtime, 60))
+									#if($found==0)
+                                        "totaldowntime" : $actualdowntime,
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"downtimeinhr":"$currentday d $hours:$minutes:$seconds",
+										
+										#set($actualdelay=0)
+										#foreach($r in $delay)
+											#if($rec.get("_id").machinename==$r.get("_id").machinename)
+												#set($actualdelay=$r.get("downtime"))
+											#end
+										#end
+                                        "totaldelay" : $actualdelay,
+										#set($currentday = 0)
+										#set($actualdelaytime = $math.div($actualdelay, 1000))
+										#set($actualdelaytime = $math.toInteger($actualdelaytime))
+										#set($currentminutes = $math.div($actualdelaytime, 60))
+										#set($currenthours = $math.div($currentminutes, 60))
+										#set($currentday=$math.div($currenthours,24))
+										#set($currentday=$math.toInteger($currentday))
+										#set($currentminutes = $math.mod($currentminutes, 60))
+										#set($currenthours = $math.mod($currenthours, 24))
+										#set($currenthours = $math.toInteger($currenthours))
+										#set($currentminutes = $math.toInteger($currentminutes))
+										#set($currentseconds = $math.mod($actualdelaytime, 60))
+										#set($hours = 0)
+										#set($minutes = 0)
+										#set($seconds = 0)
+										
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"delaytimeinhr":"$currentday d $hours:$minutes:$seconds",
+										#set($noplanshots = "")
+										#set($noplantime = 0)
+										#foreach($noplanrec in $cycletimefornoplan)
+											#if($machinename == $noplanrec.get("_id").machinename)
+												#set($noplanshots = $noplanrec.get("totalshots"))
+												#set($noplantime = $noplanrec.get("noplantime"))
+											#end
+										#end
+										#if($noplanshots == "")
+											"noplanshots" : "0",
+										#else
+											"noplanshots" : $noplanshots,
+										#end
+										#set($currentday = 0)
+										#set($actualnoplantime = $math.div($noplantime, 1000))
+										#set($actualnoplantime = $math.toInteger($actualnoplantime))
+										#set($currentminutes = $math.div($actualnoplantime, 60))
+										#set($currenthours = $math.div($currentminutes, 60))
+										#set($currentday=$math.div($currenthours,24))
+										#set($currentday=$math.toInteger($currentday))
+										#set($currentminutes = $math.mod($currentminutes, 60))
+										#set($currenthours = $math.mod($currenthours, 24))
+										#set($currenthours = $math.toInteger($currenthours))
+										#set($currentminutes = $math.toInteger($currentminutes))
+										#set($currentseconds = $math.mod($actualnoplantime, 60))
+										#set($hours = 0)
+										#set($minutes = 0)
+										#set($seconds = 0)
+										
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"noplantime":"$currentday d $hours:$minutes:$seconds",
+										
+										#set($totaltrialcycletime = 0)
+										#foreach($r in $trialcycletime)
+											#if($r.get("_id").machinename == $machinename)
+												#set($totaltrialcycletime = $r.get("totalcycletime"))
+												#break
+											#end
+										#end
+										#set($totalshutdowntime = 0)
+										#foreach($rec in $shutdowntime)
+											#if($machinename == $rec.get("_id").machinename)
+												#set($totalshutdowntime = $rec.get("downtime"))
+												#break
+											#end
+										#end
+										#set($availabletimeformachine = $math.sub($availabletime, $totalshutdowntime))
+										#set($availabletimeformachine = $math.sub($availabletimeformachine, $totaltrialcycletime))
+										#set($totalcycletime=0) 
+										#set($reject=0) 
+										#set($totalqty=0) 
+										#set($planidlist=[])
+										#set($cycletimeperplan=0) 
+										#foreach($r in $cycletime) 
+											#if($machinename==$r.get("_id").machinename) 
+												#if(!$planidlist.contains($r.get("_id").productionplanid)) 
+													#set($cycletimeperplan=$r.get("totalcycletime")) 
+													#set($totalcycletime = $math.add($totalcycletime, $cycletimeperplan))
+													#set($pl=$planidlist.add($r.get("_id").productionplanid)) 
+												#end 
+												#set($totalqty=$math.add($totalqty, $math.round($r.get("totalquantity"))))
+											#end 
+										#end 
+										#if($totalcycletime == 0)
+											#set($runtime = 0)
+										#else
+											#set($runtime = $math.sub($availabletimeformachine, $actualdowntime))
+										#end
+										
+										#set($availabletimeeff = $math.div($runtime, $availabletimeformachine))
+										#set($availabletimeeff = $math.mul($availabletimeeff, 100))
+										#set($availabletimeeff = $math.roundTo(2, $availabletimeeff))
+										#if($totalcycletime == 0 && $actualdowntime <= 0)
+											#set($availabletimeeff = 0)
+										#else
+											#if($actualdowntime <= 0 || $availabletimeeff > 100)
+												#set($availabletimeeff = 100)
+											#end	
+										#end
+										"availabletimeeff":$availabletimeeff,
+										#set($performanceeff = $math.div($totalcycletime, 1))
+										#set($performanceeff = $math.div($performanceeff, $runtime))
+										#set($performanceeff = $math.mul($performanceeff, 100))
+										#set($performanceeff = $math.roundTo(2, $performanceeff))
+										"performanceeff" : $performanceeff,
+										 
+										#foreach($rej in $rejectionformachine) 
+											#if($machinename==$rej.get("_id").machinename) 
+												#set($reject=$math.add($reject,$math.round($rej.get("rejectedquantity")))) 
+											#end 
+										#end
+											
+										#set($acceptedquantity=0) 
+										#set($acceptedquantity=$math.sub($totalqty,$reject)) 
+										#if($totalqty>0)
+											#set($qualityeff=$math.div($acceptedquantity,$totalqty))
+											#set($qualityeff=$math.mul($qualityeff,100))
+											#set($qualityeff=$math.roundTo(2,$qualityeff))
+											"qualityeff":$qualityeff,#else"qualityeff":0.0,
+										#end
+										#set($midoee=$math.mul($availabletimeeff,$performanceeff))
+										#set($midoee=$math.mul($midoee,$qualityeff))
+										#set($midoee=$math.div($midoee,10000))
+										#set($oee=$math.roundTo(2,$midoee))
+										"oee":$oee,
+									#end
+									
+										#set($purgetime=0)
+										#set($purgequantity=0)
+										#foreach($r in $cycletimepurging)
+											#if($rec.get("_id").machinename==$r.get("_id").machinename && $rec.get("_id").productionplanid==$r.get("_id").productionplanid && $rec.get("_id").partname == $r.get("_id").partname)
+												#set($purgetime=$math.add($purgetime,$r.get("totalcycletime")))
+												#set($purgequantity=$math.add($purgequantity,$r.get("totalquantity")))
+												#set($purgequantity=$math.round($purgequantity))
+											#end
+										#end
+										"purgeqty":$purgequantity,
+										#set($currentday = 0)
+										#set($actualpurgetime = $math.div($purgetime, 1000))
+										#set($actualpurgetime = $math.toInteger($actualpurgetime))
+										#set($currentminutes = $math.div($actualpurgetime, 60))
+										#set($currenthours = $math.div($currentminutes, 60))
+										#set($currentday=$math.div($currenthours,24))
+										#set($currentday=$math.toInteger($currentday))
+										#set($currentminutes = $math.mod($currentminutes, 60))
+										#set($currenthours = $math.mod($currenthours, 24))
+										#set($currenthours = $math.toInteger($currenthours))
+										#set($currentminutes = $math.toInteger($currentminutes))
+										#set($currentseconds = $math.mod($actualpurgetime, 60))
+										
+										#set($hours = 0)
+										#set($minutes = 0)
+										#set($seconds = 0)
+										
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"purgetime":"$currentday d $hours:$minutes:$seconds",
+									
+										#set($actualdowntime=$math.sub($actualdowntime,$actualdelay))
+										#set($workingtime=$math.sub($secondsinhour,$actualdowntime))
+										#set($cavity=$math.toInteger($cavity))
+										#set($activecavity=$math.toInteger($activecavity))
+										"cavity":$cavity,
+										"activecavity":$activecavity,
+										#set($rejectedquantity=0)
+										#set($reworkquantity=0)
+										#set($rejectionpercent=0)
+										#set($reworkpercent=0)
+										#foreach($r in $rejection)
+											#if($rec.get("_id").machinename==$r.get("_id").machinename && $rec.get("_id").partname == $r.get("_id").partname && $rec.get("_id").productionplanid == $r.get("_id").productionplanid)
+												#set($rejectedquantity=$math.add($rejectedquantity, $r.get("rejectedquantity")))
+												#set($rejectedquantity=$math.round($rejectedquantity))
+												#set($reworkquantity=$math.add($reworkquantity, $r.get("reworkquantity")))
+												#set($reworkquantity=$math.round($reworkquantity))
+											#end
+										#end
+										#set($acceptedquantity=$math.sub($math.round($rec.get("totalquantity")),$rejectedquantity))
+										
+										#set($reworkpercent=$math.div($reworkquantity,$rec.get("totalquantity")))
+										#set($reworkpercent=$math.mul($reworkpercent,100))
+										#set($reworkpercent=$math.roundTo(2,$reworkpercent))
+										#set($rejectionpercent=$math.div($rejectedquantity,$rec.get("totalquantity")))
+										#set($rejectionpercent=$math.mul($rejectionpercent,100))
+										#set($rejectionpercent=$math.roundTo(2,$rejectionpercent))
+										"targetquantity":$targetquantity,
+										#set($totalquantity=$math.round($rec.get("totalquantity")))
+										"produced":$totalquantity,
+										"acceptedquantity":$acceptedquantity,
+										"reworkquantity":$reworkquantity,
+										"rework":$reworkpercent,
+										"rejectedquantity":$rejectedquantity,
+										"rejection":$rejectionpercent
+								}
+								#set($count=$count+1)
+							#end
+						#end
+						#if($planidfound == 0)
+							#set($purgetime=0)
+							#set($purgequantity=0)
+							#foreach($r in $cycletimepurging)
+								#if($m.get("_id").machinename==$r.get("_id").machinename && $planrec.get("_id").planid==$r.get("_id").productionplanid)
+									#set($machinefound = 1)
+									#set($p=$plans.add($planrec.get("_id").planid))
+									#set($purgetime=$math.add($purgetime,$r.get("totalcycletime")))
+									#set($purgequantity=$math.add($purgequantity,$r.get("totalquantity")))
+									#set($purgequantity=$math.round($purgequantity))
+									#set($found=0)
+									#foreach($mac in $machines)
+										#if($mac==$r.get("_id").machinename)
+											#set($found=1)
+											#break
+										#end
+									#end
+									#set($f=$machines.add($r.get("_id").machinename))
+									#if($number > 0)
+										,
+									#end
+									{
+									
+									#set($number = $number + 1)
+									
+									"purgeqty":$purgequantity,
+									"number":$number,
+									"machine":$r.get("_id").machinename,
+									"part":$r.get("_id").partname,
+									#if(!$planrec.get("_id").scheduletype)
+										"scheduletype":"-",
+									#else
+										"scheduletype":$planrec.get("_id").scheduletype,
+									#end
+									"workingtime" : "0 d 00:00:00",
+									#set($targetquantity=0)
+									#foreach($pl in $planning)
+										#if($r.get("_id").productionplanid==$pl.get("_id").planid && $r.get("_id").partname == $pl.get("_id").partname)
+											#set($targetquantity=$pl.get("_id").targetquantity)
+											#break
+										#end
+									#end
+									"targetquantity":$targetquantity,
+									#set($currentday = 0)
+									#set($actualpurgetime = $math.div($purgetime, 1000))
+									#set($actualpurgetime = $math.toInteger($actualpurgetime))
+									#set($currentminutes = $math.div($actualpurgetime, 60))
+									#set($currenthours = $math.div($currentminutes, 60))
+									#set($currentday=$math.div($currenthours,24))
+									#set($currentday=$math.toInteger($currentday))
+									#set($currentminutes = $math.mod($currentminutes, 60))
+									#set($currenthours = $math.mod($currenthours, 24))
+									#set($currenthours = $math.toInteger($currenthours))
+									#set($currentminutes = $math.toInteger($currentminutes))
+									#set($currentseconds = $math.mod($actualpurgetime, 60))
+									
+									#set($hours = 0)
+									#set($minutes = 0)
+									#set($seconds = 0)
+									
+									#if($currenthours < 10)
+										#set($hours = "0$currenthours")
+									#else
+										#set($hours = "$currenthours")
+									#end
+									#if($currentminutes < 10)
+										#set($minutes = "0$currentminutes")
+									#else
+										#set($minutes = "$currentminutes")
+									#end
+									#if($currentseconds < 10)
+										#set($seconds = "0$currentseconds")
+									#else
+										#set($seconds = "$currentseconds")
+									#end
+									"purgetime":"$currentday d $hours:$minutes:$seconds"
+									
+									#set($actualdowntime=0)
+									#foreach($dt in $downtime)
+										#if($m.get("_id").machinename==$dt.get("_id").machinename)
+											#set($actualdowntime=$dt.get("downtime"))
+										#end
+									#end
+									#set($durationdtinprog = 0)
+									#foreach($rec in $downtimeinprogress)
+										#if(($m.get("_id").machinename == $rec.get("_id").machinename))
+											#set($dtstart = $rec.get("_id").downtimestart)
+											#set($durationdtinprog = $math.sub($enddate, $dtstart))
+											#set($durationdtinprog = $math.round($durationdtinprog))
+											#break
+										#end
+									#end
+									
+									#set($actualdowntime = $math.add($actualdowntime,$durationdtinprog))
+									#set($actualdowntime = $math.sub($actualdowntime,$totaldaybreaktime))
+									#set($actualdowntime = $math.sub($actualdowntime,$HolidayInterval))
+									#if($actualdowntime <= 0)
+											#set($actualdowntime = 0)
+										#else
+											#set($actualdowntime = $actualdowntime)
+									#end
+									#set($hours = 0)
+									#set($minutes = 0)
+									#set($seconds = 0)
+									#set($currentday = 0)
+									#set($actualtime=$math.div($actualdowntime, 1000))
+									#set($actualtime=$math.toInteger($actualtime))
+									#set($currentminutes = $math.div($actualtime, 60))
+									#set($currenthours = $math.div($currentminutes, 60))
+									#set($currentday=$math.div($currenthours,24))
+									#set($currentday=$math.toInteger($currentday))
+									#set($currentminutes = $math.mod($currentminutes, 60))
+									#set($currenthours = $math.mod($currenthours, 24))
+									#set($currenthours = $math.toInteger($currenthours))
+									#set($currentminutes = $math.toInteger($currentminutes))
+									#set($currentseconds = $math.mod($actualtime, 60))
+									#if($found==0)
+										,
+                                        "totaldowntime" : $actualdowntime,
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"downtimeinhr":"$currentday d $hours:$minutes:$seconds",
+										
+										#set($actualdelay=0)
+										#foreach($d in $delay)
+											#if($m.get("_id").machinename==$d.get("_id").machinename)
+												#set($actualdelay=$d.get("downtime"))
+											#end
+										#end
+                                        "totaldelay" : $actualdelay,
+										#set($currentday = 0)
+										#set($actualdelaytime = $math.div($actualdelay, 1000))
+										#set($actualdelaytime = $math.toInteger($actualdelaytime))
+										#set($currentminutes = $math.div($actualdelaytime, 60))
+										#set($currenthours = $math.div($currentminutes, 60))
+										#set($currentday=$math.div($currenthours,24))
+										#set($currentday=$math.toInteger($currentday))
+										#set($currentminutes = $math.mod($currentminutes, 60))
+										#set($currenthours = $math.mod($currenthours, 24))
+										#set($currenthours = $math.toInteger($currenthours))
+										#set($currentminutes = $math.toInteger($currentminutes))
+										#set($currentseconds = $math.mod($actualdelaytime, 60))
+										#set($hours = 0)
+										#set($minutes = 0)
+										#set($seconds = 0)
+										
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"delaytimeinhr":"$currentday d $hours:$minutes:$seconds",
+										
+										#set($noplanshots = "")
+										#set($noplantime = 0)
+										#foreach($noplanrec in $cycletimefornoplan)
+											#if($m.get("_id").machinename == $noplanrec.get("_id").machinename)
+												#set($noplanshots = $noplanrec.get("totalshots"))
+												#set($noplantime = $noplanrec.get("noplantime"))
+											#end
+										#end
+										#if($noplanshots == "")
+											"noplanshots" : "0",
+										#else
+											"noplanshots" : $noplanshots,
+										#end
+										#set($currentday = 0)
+										#set($actualnoplantime = $math.div($noplantime, 1000))
+										#set($actualnoplantime = $math.toInteger($actualnoplantime))
+										#set($currentminutes = $math.div($actualnoplantime, 60))
+										#set($currenthours = $math.div($currentminutes, 60))
+										#set($currentday=$math.div($currenthours,24))
+										#set($currentday=$math.toInteger($currentday))
+										#set($currentminutes = $math.mod($currentminutes, 60))
+										#set($currenthours = $math.mod($currenthours, 24))
+										#set($currenthours = $math.toInteger($currenthours))
+										#set($currentminutes = $math.toInteger($currentminutes))
+										#set($currentseconds = $math.mod($actualnoplantime, 60))
+										#set($hours = 0)
+										#set($minutes = 0)
+										#set($seconds = 0)
+										
+										#if($currenthours < 10)
+											#set($hours = "0$currenthours")
+										#else
+											#set($hours = "$currenthours")
+										#end
+										#if($currentminutes < 10)
+											#set($minutes = "0$currentminutes")
+										#else
+											#set($minutes = "$currentminutes")
+										#end
+										#if($currentseconds < 10)
+											#set($seconds = "0$currentseconds")
+										#else
+											#set($seconds = "$currentseconds")
+										#end
+										"noplantime":"$currentday d $hours:$minutes:$seconds",
+										
+										#set($totaltrialcycletime = 0)
+										#foreach($tct in $trialcycletime)
+											#if($tct.get("_id").machinename == $m.get("_id").machinename)
+												#set($totaltrialcycletime = $tct.get("totalcycletime"))
+												#break
+											#end
+										#end
+										#set($totalshutdowntime = 0)
+										#foreach($rec in $shutdowntime)
+											#if($m.get("_id").machinename == $rec.get("_id").machinename)
+												#set($totalshutdowntime = $rec.get("downtime"))
+												#break
+											#end
+										#end
+										#set($availabletimeformachine = $math.sub($availabletime, $totalshutdowntime))
+										#set($availabletimeformachine = $math.sub($availabletimeformachine, $totaltrialcycletime))
+										#set($runtime = $math.sub($availabletimeformachine, $actualdowntime))
+										#set($totalcycletime=0) 
+										#set($reject=0) 
+										#set($totalqty=0) 
+										#set($planidlist=[])
+										#set($cycletimeperplan=0) 
+										#foreach($rec in $cycletime) 
+											#if($m.get("_id").machinename==$rec.get("_id").machinename) 
+												#if(!$planidlist.contains($rec.get("_id").productionplanid)) 
+													#set($cycletimeperplan=$rec.get("totalcycletime")) 
+													#set($totalcycletime = $math.add($totalcycletime, $cycletimeperplan))
+													#set($pl=$planidlist.add($rec.get("_id").productionplanid)) 
+												#end 
+												#set($totalqty=$math.add($totalqty, $math.round($rec.get("totalquantity"))))
+											#end 
+										#end 
+										#set($availabletimeeff = $math.div($runtime, $availabletimeformachine))
+										#set($availabletimeeff = $math.mul($availabletimeeff, 100))
+										#set($availabletimeeff = $math.roundTo(2, $availabletimeeff))
+										
+											#if($actualdowntime <= 0 || $availabletimeeff > 100)
+												#set($availabletimeeff = 100)
+											#end	
+										 
+										"availabletimeeff":$availabletimeeff,
+										
+										#set($performanceeff = $math.div($totalcycletime, 1))
+										#set($performanceeff = $math.div($performanceeff, $runtime))
+										#set($performanceeff = $math.mul($performanceeff, 100))
+										#set($performanceeff = $math.roundTo(2, $performanceeff))
+										"performanceeff" : $performanceeff,
+										 
+										#foreach($rej in $rejectionformachine) 
+											#if($m.get("_id").machinename==$rej.get("_id").machinename) 
+												#set($reject=$math.add($reject,$math.round($rej.get("rejectedquantity")))) 
+											#end 
+										#end 
+										#set($acceptedquantity=0) 
+										#set($acceptedquantity=$math.sub($totalqty,$reject)) 
+										#if($totalqty>0)
+											#set($qualityeff=$math.div($acceptedquantity,$totalqty))
+											#set($qualityeff=$math.mul($qualityeff,100))
+											#set($qualityeff=$math.roundTo(2,$qualityeff))
+											"qualityeff":$qualityeff,#else"qualityeff":0.0,
+										#end
+										#set($midoee=$math.mul($availabletimeeff,$performanceeff))
+										#set($midoee=$math.mul($midoee,$qualityeff))
+										#set($midoee=$math.div($midoee,10000))
+										#set($oee=$math.roundTo(2,$midoee))
+										"oee":$oee
+									#end
+									}
+								#end
+							#end
+						#end
+					#end			
+				#end
+				#if($machinefound == 0)
+					#set($noplanshots = 0)
+					#set($noplantime = 0)	
+					#set($noplanrunmc = 0)
+					#foreach($noplanrec in $cycletimefornoplan)
+						#if($m.get("_id").machinename == $noplanrec.get("_id").machinename)
+							#set($noplanrunmc = 1)
+							#set($noplanshots = $noplanrec.get("totalshots"))
+							#set($noplantime = $noplanrec.get("noplantime"))
+							
+							#set($hours = 0)
+							#set($minutes = 0)
+							#set($seconds = 0)
+							#set($currentday = 0)
+							#set($actualnoplantime = $math.div($noplantime, 1000))
+							#set($actualnoplantime = $math.toInteger($actualnoplantime))
+							#set($currentminutes = $math.div($actualnoplantime, 60))
+							#set($currenthours = $math.div($currentminutes, 60))
+							#set($currentday=$math.div($currenthours,24))
+							#set($currentday=$math.toInteger($currentday))
+							#set($currentminutes = $math.mod($currentminutes, 60))
+							#set($currenthours = $math.mod($currenthours, 24))
+							#set($currenthours = $math.toInteger($currenthours))
+							#set($currentminutes = $math.toInteger($currentminutes))
+							#set($currentseconds = $math.mod($actualnoplantime, 60))
+							
+							#if($currenthours < 10)
+								#set($hours = "0$currenthours")
+							#else
+								#set($hours = "$currenthours")
+							#end
+							#if($currentminutes < 10)
+								#set($minutes = "0$currentminutes")
+							#else
+								#set($minutes = "$currentminutes")
+							#end
+							#if($currentseconds < 10)
+								#set($seconds = "0$currentseconds")
+							#else
+								#set($seconds = "$currentseconds")
+							#end
+							#if($number > 0)
+								,
+							#end
+							{
+							"noplantime":"$currentday d $hours:$minutes:$seconds",
+							#set($actualdowntime=0)
+							#foreach($r in $downtime)
+								#if($noplanrec.get("_id").machinename==$r.get("_id").machinename)
+									#set($actualdowntime=$r.get("downtime"))
+								#end
+							#end
+							#set($durationdtinprog = 0)
+							#foreach($rec in $downtimeinprogress)
+								#if(($noplanrec.get("_id").machinename == $rec.get("_id").machinename))
+									#set($dtstart = $rec.get("_id").downtimestart)
+									#set($durationdtinprog = $math.sub($enddate, $dtstart))
+									#set($durationdtinprog = $math.round($durationdtinprog))
+									#break
+								#end
+							#end
+							
+							#set($actualdowntime = $math.add($actualdowntime,$durationdtinprog))
+							#set($actualdowntime = $math.sub($actualdowntime,$totaldaybreaktime))
+							#set($actualdowntime = $math.sub($actualdowntime,$HolidayInterval))
+							#if($actualdowntime <= 0)
+									#set($actualdowntime = 0)
+								#else
+									#set($actualdowntime = $actualdowntime)
+							#end
+                            "totaldowntime" : $actualdowntime,
+							"workingtime" : "0 d 00:00:00",
+							#set($hours = 0)
+							#set($minutes = 0)
+							#set($seconds = 0)
+							#set($currentday = 0)
+							#set($actualtime=$math.div($actualdowntime, 1000))
+							#set($actualtime=$math.toInteger($actualtime))
+							#set($currentminutes = $math.div($actualtime, 60))
+							#set($currenthours = $math.div($currentminutes, 60))
+							#set($currentday=$math.div($currenthours,24))
+							#set($currentday=$math.toInteger($currentday))
+							#set($currentminutes = $math.mod($currentminutes, 60))
+							#set($currenthours = $math.mod($currenthours, 24))
+							#set($currenthours = $math.toInteger($currenthours))
+							#set($currentminutes = $math.toInteger($currentminutes))
+							#set($currentseconds = $math.mod($actualtime, 60))
+								
+								#if($currenthours < 10)
+									#set($hours = "0$currenthours")
+								#else
+									#set($hours = "$currenthours")
+								#end
+								#if($currentminutes < 10)
+									#set($minutes = "0$currentminutes")
+								#else
+									#set($minutes = "$currentminutes")
+								#end
+								#if($currentseconds < 10)
+									#set($seconds = "0$currentseconds")
+								#else
+									#set($seconds = "$currentseconds")
+								#end
+								
+							"downtimeinhr":"$currentday d $hours:$minutes:$seconds",
+							#set($runtime = $math.sub($availabletime, $actualdowntime))
+							#set($availabletimeeff = $math.div($runtime, $availabletime))
+							#set($availabletimeeff = $math.mul($availabletimeeff, 100))
+							#set($availabletimeeff = $math.roundTo(2, $availabletimeeff))
+							#if($actualdowntime <= 0 || $availabletimeeff > 100)
+								#set($availabletimeeff = 100)
+							#end	
+								
+							#set($actualdelay = 0)
+							#foreach($r in $delay)
+								#if($noplanrec.get("_id").machinename == $r.get("_id").machinename)
+									#set($actualdelay = $r.get("downtime"))
+								#end
+							#end							
+							"totaldelay" : $actualdelay,
+							#set($currentday = 0)
+							#set($actualdelaytime = $math.div($actualdelay, 1000))
+							#set($actualdelaytime = $math.toInteger($actualdelaytime))
+							#set($currentminutes = $math.div($actualdelaytime, 60))
+							#set($currenthours = $math.div($currentminutes, 60))
+							#set($currentday=$math.div($currenthours,24))
+							#set($currentday=$math.toInteger($currentday))
+							#set($currentminutes = $math.mod($currentminutes, 60))
+							#set($currenthours = $math.mod($currenthours, 24))
+							#set($currenthours = $math.toInteger($currenthours))
+							#set($currentminutes = $math.toInteger($currentminutes))
+							#set($currentseconds = $math.mod($actualdelaytime, 60))
+							#set($hours = 0)
+							#set($minutes = 0)
+							#set($seconds = 0)
+							
+							#if($currenthours < 10)
+								#set($hours = "0$currenthours")
+							#else
+								#set($hours = "$currenthours")
+							#end
+							#if($currentminutes < 10)
+								#set($minutes = "0$currentminutes")
+							#else
+								#set($minutes = "$currentminutes")
+							#end
+							#if($currentseconds < 10)
+								#set($seconds = "0$currentseconds")
+							#else
+								#set($seconds = "$currentseconds")
+							#end
+							"delaytimeinhr":"$currentday d $hours:$minutes:$seconds",
+							
+							#set($number = $number + 1)
+							"noplanshots" : $noplanshots,
+							"number" : $number,
+							"machine" : $m.get("_id").machinename ,
+							"part" : "No Plan",
+							"scheduletype":"-",
+							"purgeqty" : 0,
+							"purgetime" : "0 d 00:00:00",
+							"availabletimeeff" : $availabletimeeff,
+							"targetquantity" : 0,
+							"produced" : 0,
+							"rejectedquantity" : 0,
+							"acceptedquantity" : 0
+							}
+						#end
+					#end
+						
+					#if($noplanrunmc == 0)
+					#if($number > 0)
+							,
+						#end
+						{	
+							#set($number = $number + 1)
+							"number" : $number,
+							"workingtime" : "0 d 00:00:00",
+							"downtimeinhr" : "1 d 00:00:00",
+                            "totaldelay" : "0",
+                            "totaldowntime" : "8640000",
+							"machine" : $m.get("_id").machinename ,
+							"noplanshots" : 0,
+							"noplantime" : "0 d 00:00:00",
+							"part" : "No Production",
+							"scheduletype":"-",
+							"purgeqty" : 0,
+							"purgetime" : "0 d 00:00:00",
+							"targetquantity" : 0,
+							"produced" : 0,
+							"rejectedquantity" : 0,
+							"acceptedquantity" : 0
+						}
+					#end	
+				#end
+			#end
+		],
+		"records":$count
+}

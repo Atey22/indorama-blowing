@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mon:Mongobot xmlns:mon="http://mongobot.entrib.com" Name="productionsummaryreport" Database="emgda" Host="localhost" Port="27017">
+ <DataObject Name="machine" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;machine&quot; " />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="machinename" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="shift" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;shift&quot; " />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="shiftname" Field="shiftname" />
+                </Group>
+            </Pipeline>
+            <Pipeline>
+                <Sort>
+                    <SortField Name="shiftname" SortDirection="Asc" SortGroupById="true" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="productionbasereport" Collection="aggregated">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;productionbase&quot; &amp;&amp; (date &gt;= timestamp('startdate') &amp;&amp; date &lt; timestamp('enddate')) "/>
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+					<Key Name="planid" Field="planid" />
+					<Key Name="shift" Field="shift" />
+					<GroupField Name="prodqty" Field="totalquantity" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="downtimebasereport" Collection="aggregated">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;downtimebase&quot; &amp;&amp; (date &gt;= timestamp('startdate') &amp;&amp; date &lt; timestamp('enddate')) "/>
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+					<Key Name="planid" Field="planid" />
+					<Key Name="shift" Field="shift" />
+					<Key Name="downtimereason" Field="downtimereason" />
+					<GroupField Name="downtime" Field="downtimeinms" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+			<Pipeline>
+                <Sort>
+                    <SortField Name="downtime" SortDirection="Desc" SortGroupById="false" />
+                </Sort>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="rejection" Collection="rejection">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;rejection&quot; &amp;&amp; (createdTimestamp &gt;= timestamp('startdate') &amp;&amp; createdTimestamp &lt;= timestamp('enddate')) "/>
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+					<Key Name="planid" Field="planid" />
+					<Key Name="shift" Field="shift" />
+					<GroupField Name="rejqty" Field="rejectionquantity" GroupFunction="Sum" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="downtimereason" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;downtimereason&quot; &amp;&amp; managementlosses == true "/>
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="downtimereason" Field="downtimereason" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="breaktime" Collection="provisioning">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;breaktime&quot;"/>
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="breakreason" Field="description" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+	<DataObject Name="planning" Collection="embedded">
+        <Aggregate>
+            <Pipeline>
+                <Match Condition="customerId == customerid &amp;&amp; elementName == &quot;planning&quot; &amp;&amp; planstatus!=&quot;Not Started&quot;" />
+            </Pipeline>
+            <Pipeline>
+                <Group>
+                    <Key Name="machinename" Field="machinename" />
+					<Key Name="planid" Field="planid" />
+					<Key Name="ipwidth" Field="ipwidth" />
+					<Key Name="opthick" Field="opthick" />
+					<Key Name="opwidth" Field="opwidth" />
+					<Key Name="oplength" Field="oplength" />
+					<Key Name="targetquantity" Field="targetquantity" />
+                </Group>
+            </Pipeline>
+        </Aggregate>
+    </DataObject>
+</mon:Mongobot>
