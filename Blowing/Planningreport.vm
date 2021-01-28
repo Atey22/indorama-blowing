@@ -13,6 +13,7 @@
 {"name" : "preformcolour", "type" : "string", "description" : "Preform Colour"},
 {"name" : "productionqtypallets", "type" : "number", "description" : "Production Q'ty(Pallets)"},
 {"name" : "productionqtylayer", "type" : "number", "description" : "Production Q'ty(Layer)"},
+{"name" : "targetquantity", "type" : "number", "description" : "Production Q'ty(Pcs)"},
 {"name" : "label", "type" : "string", "description" : "Label Yes/No"},
 {"name" : "labelqty", "type" : "number", "description" : "Label Q'ty(Roll)"},
 {"name" : "dtrollchange", "type" : "number", "description" : "DT Roll Change (Hrs)"},
@@ -50,6 +51,7 @@
 #set($preformcolour = '"-"')
 #set($productionqtypallets = 0)
 #set($productionqtylayer = 0)
+#set($targetquantity = 0)
 #set($label = '"-"')
 #set($labelqty = 0)
 #set($dtrollchange = 0)
@@ -89,6 +91,7 @@
 #set($preformcolour = $plan.get("_id").preformcolour)
 #set($productionqtypallets = $plan.get("_id").productionqtypallets)
 #set($productionqtylayer = $plan.get("_id").productionqtylayer)
+#set($targetquantity = $plan.get("_id").targetquantity)
 #set($label = $plan.get("_id").label)
 #set($labelqty = $plan.get("_id").labelqty)
 #set($dtrollchange = $plan.get("_id").dtrollchange)
@@ -128,6 +131,7 @@
 "preformcolour" : $preformcolour,
 "productionqtypallets" : $productionqtypallets,
 "productionqtylayer" : $productionqtylayer,
+"targetquantity" : $targetquantity,
 "label" : $label,
 "labelqty" : $labelqty,
 "dtrollchange" : $dtrollchange,
